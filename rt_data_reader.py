@@ -21,7 +21,7 @@ def make_cfp_dict(overbias_dir, board):
         for ix in ob['subtargets']:
             freq = ob['subtargets'][ix]['frequency']
             bolo = ob['subtargets'][ix]['bolometer']
-            cfp = convert_TF(15, 'carrier', unit='RAW', frequency=freq)
+            cfp = convert_TF(15, 'nuller', unit='RAW', frequency=freq)
             cfp_dict[bolo] = cfp
     return cfp_dict
 
@@ -120,7 +120,7 @@ def convert_i2r(ds_data, board, overbias_dir):
                     data_r[ky] = ds_div
 
     return data_r
-'''
+
 def make_data_dict(data_r):
 	data_dict = {}
 	for bolo in data_r.keys():
@@ -163,4 +163,4 @@ def plot_each_bolo(ds_temps, data_r, data_dict):
 def find_tc(data_r, ds_temps, temp_range, data_dict):
 	for bolo in data_dict.keys():
 		if bolo not in bad_bolos_all:
-'''
+            print bolo
