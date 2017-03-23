@@ -138,11 +138,11 @@ def find_r_normal(data_r, ds_temps, temp_min, data_dict):
 		data_dict[bolo]['rnormal'] = rnorm_mean
 	return data_dict
 
-def find_r_parasitic(data_r, ds_temps, temp_max, data_dict):
+def find_r_parasitic(data_r, ds_temps, temp_range, data_dict):
 	for bolo in data_dict.keys():
 		rpars = []
 		for ix in range(len(ds_temps)):
-			if ds_temps[ix] < float(temp_max):
+			if float(temp_range[0]) < ds_temps[ix] < float(temp_range[1]):
 				rpars.append(data_r[bolo][ix])
 		rpars_mean = mean(rpars)
 		data_dict[bolo]['rpar'] = rpars_mean
@@ -161,6 +161,28 @@ def plot_each_bolo(ds_temps, data_r, data_dict):
 		plt.show()
 
 def find_tc(data_r, ds_temps, temp_range, data_dict):
-	for bolo in data_dict.keys():
-		if bolo not in bad_bolos_all:
+    for bolo in data_dict.keys():
+        if bolo not in bad_bolos:
+            points = []
+            for ix in range(len(ds_temps)):
+                if float(temp_range[0]) < ds_temps[ix] < float(temp_range[1]):
+                    if 1.2*float(data_dict[bolo]['rpar']) < data_r[bolo][ix] < 0.8*float(data_dict[bolo]['rnormal']):
+                        points.append(ds_temps[ix])
+        try:
+            data_dict[bolo]['tc']=mean(points)
+        except:
             print bolo
+    return data_dict
+
+def tc_plots(ds_temps, data_r, data_dict):
+    for bolo in data_dict.keys():
+        if bolo not in bad_bolos:
+            plt.figure()
+            plt.plot(ds_temps, data_r[bolo], color='C0')
+            plt.axhline(data_dict[bolo]['rnormal'], color='C2')
+            plt.axhline(data_dict[bolo]['rpar'], color='C2')
+            plt.axvline(data_dict[bolo]['tc'], color='C3')
+            plt.title(str(bolo))
+            plt.ylabel('Resistance ($\Omega$)')
+            plt.xlabel('Temperature (K)')
+            plt.show()
