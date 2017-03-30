@@ -11,7 +11,7 @@
 # 27 April 2016
 
 import pydfmux
-from anl_fridge_control.serial_connections import *
+#from anl_fridge_control.serial_connections import *
 import os,time
 import datetime
 import numpy as np
@@ -37,36 +37,36 @@ d=ds[0]
 
 
 # cryostat-specific settings
-setpoints = np.linspace(0.300, 0.600, 7)
+setpoints = np.linspace(0.550, 0.600, 2)
 
 print 'Starting G(T)'
 
-#sc.He3ICp.set_voltage(0)
-#sc.He3UCp.set_voltage(0)
-#sc.He3ICs.set_voltage(0)
-#sc.He3UCs.set_voltage(0)
-#sc.ChaseLS.set_PID_temp(1, 0.500)
-#time.sleep(1)
-#sc.ChaseLS.set_heater_range(2)
-#while float(gt.gettemp(logfile, 'UC Head'))<0.500:
-#    time.sleep(10)
-#sc.ChaseLS.set_PID_temp(1,0.650)
-#time.sleep(1)
-#sc.ChaseLS.set_heater_range(3)
-#time.sleep(1)
-#while float(gt.gettemp(logfile, 'UC Head'))<0.650:
-#    time.sleep(20)
-#time.sleep(300)
+sc.He3ICp.set_voltage(0)
+sc.He3UCp.set_voltage(0)
+sc.He3ICs.set_voltage(0)
+sc.He3UCs.set_voltage(0)
+sc.ChaseLS.set_PID_temp(1, 0.500)
+time.sleep(1)
+sc.ChaseLS.set_heater_range(2)
+while float(gt.gettemp(logfile, 'UC Head'))<0.450:
+    time.sleep(10)
+sc.ChaseLS.set_PID_temp(1,0.650)
+time.sleep(1)
+sc.ChaseLS.set_heater_range(3)
+time.sleep(1)
+while int(gt.gettemp(logfile, 'UC Head')*1e3)<650:
+    time.sleep(20)
+time.sleep(300)
 
 #if 'good_bolos' in locals():
 #	overbias_results = good_bolos.overbias_and_null(cold_overbias=False, serialize=True,carrier_amplitude=0.0135, scale_by_frequency=True)
 #else:
 #	overbias_results = bolos.overbias_and_null(cold_overbias=False, serialize=True,carrier_amplitude=0.0135, scale_by_frequency=True)
 
-#print 'Overbiasing'
-#ds.clear_all()
-#ds.clear_dan()
-#bolos.overbias_and_null(cold_overbias=False, serialize=True, carrier_amplitude=0.015, scale_by_frequency=True)
+print 'Overbiasing'
+ds.clear_all()
+ds.clear_dan()
+bolos.overbias_and_null(cold_overbias=False, serialize=True, carrier_amplitude=0.015, scale_by_frequency=True)
 
 waferstarttemps = np.zeros(len(setpoints))
 measurestarttimes = np.zeros(len(setpoints))
@@ -123,7 +123,7 @@ for jtemp in range(len(setpoints)):
     print waferstoptemps
 
     # save the data to a pickle file, rewriting after each acquisition
-    f = file('/home/spt3g/output/20170317/G_temp_data_20170317.pkl', 'w')
+    f = file('/home/spt3g/output/20170321/G_temp_data_20170321.pkl', 'w')
     pickle.dump([waferstarttemps, measurestarttimes, waferstoptemps, measurestoptimes], f)
     f.close()
 
@@ -134,14 +134,14 @@ for jtemp in range(len(setpoints)):
     sc.ChaseLS.set_PID_temp(1, 0.500)
     time.sleep(1)
     sc.ChaseLS.set_heater_range(2)
-    while float(gt.gettemp(logfile, 'UC Head'))<0.500:
+    while float(gt.gettemp(logfile, 'UC Head'))<0.480:
         time.sleep(20)
 
     sc.ChaseLS.set_PID_temp(1,0.650)
     time.sleep(1)
     sc.ChaseLS.set_heater_range(3)
     time.sleep(1)
-    while float(gt.gettemp(logfile, 'UC Head'))<0.650:
+    while float(gt.gettemp(logfile, 'UC Head'))<0.640:
 	time.sleep(10)
     time.sleep(600)
 

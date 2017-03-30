@@ -31,8 +31,8 @@ import anl_fridge_control.serial_connections as sc
 
 # Choose a hardware map and IceBoard
 
-hwm_dir='/home/spt3g/hardware_maps/hwm_anl_20170201_Nb_and_Al/hwm_anl_complete.yml'
-board='0135'
+hwm_dir='/home/spt3g/hardware_maps/hwm_anl_20170306_W169_and_Rboards/hwm_anl_proto.yml'
+board='0137'
 
 hwm=pydfmux.load_session(open(hwm_dir))['hardware_map']
 ds=hwm.query(pydfmux.Dfmux)
@@ -52,6 +52,7 @@ for bb in bolos.all():
         if bb.iceboard.serial==board and bb.readout_channel.mezzanine.mezzanine==1 and (bb.readout_channel.module.module==3):
             gbolos.append(bb)
         if bb.iceboard.serial==board and bb.readout_channel.mezzanine.mezzanine==1 and (bb.readout_channel.module.module==4):
+
             gbolos.append(bb)
         if bb.iceboard.serial==board and bb.readout_channel.mezzanine.mezzanine==2 and (bb.readout_channel.module.module==1):
             gbolos.append(bb)
