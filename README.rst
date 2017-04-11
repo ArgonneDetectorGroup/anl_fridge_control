@@ -26,7 +26,7 @@ are different, we need to supply the computer an easy way to talk to these boxes
 This is done with driver files, which give a list of the remote interface commands,
 as well as serial connection information, that can be used to communicate.
 
-Currently, the driver files are stored as He4p.txt, He4s.txt, He3ICp.txt, He3ICs.txt,
+The driver files are stored as He4p.txt, He4s.txt, He3ICp.txt, He3ICs.txt,
 He3UCp.txt, and He3UCs.txt.  Each driver file corresponds to one output on a
 power supply, and takes the following format.  All of the keys in this list are
 needed to make the connections and send the correct information, so it is important
@@ -100,9 +100,8 @@ the remote electronics. powersupply.py must also be supplied driver files
 Here, those driver files are stored as He4p.txt, He4s.txt, He3ICp.txt, He3ICs.txt,
 He3UCp.txt, and He3UCs.txt.
 
-The PowerSupply class is set up to retrieve text files from the
-he10_fridge_control/Lauren directory, by the name of the text file. PowerSupply
-objects are called as such:
+The PowerSupply class is set up to retrieve text files from anl_fridge_control/control,
+by the name of the text file. PowerSupply objects are called as such:
 
 .. code:: python
 
@@ -115,8 +114,7 @@ control (i.e., for sending current through a Helmholtz coil).
 The serial_connections script establishes the power supply and ChaseLS class
 objects.  Importing this script allows you to create a usable connection with
 the power supplies and Lakeshore340 box via their serial ports; if you wish to
-change the connections, you can do so by modifying the powersupply, lakeshore,
-and serial_connections scripts.
+change the connections, you can do so by modifying the serial_connections script.
 
 The PowerSupply class provides a number of functions for connecting with the
 power supplies and troubleshooting problems.
@@ -200,14 +198,23 @@ Celsius temperature for channel A, you could type
 
 Fridge logging
 --------------
-Relevant files:
-
-  - fridge_logger_anl.py
-
 The fridge_logger_anl.py code (https://github.com/adamanderson/he10_fridge_control/blob/master/logger/fridge_logger_anl.py)
 reads in data from Lakeshore340 and Lakeshore218 boxes. It then outputs data to
 a .h5 file and a _read.h5 file, which are used to create plots and current
-temperature readings on the website. The fridge logger can be called as
+temperature readings on the website.
+
+The fridge logger, as well as the web server that services it, are run in tmux sessions.
+The steps for launching the fridge logger and monitoring temperatures are:
+
+1. Open two tmux sessions by typing "tmux" into the terminal.
+
+2. Attach to one of the tmux sessions by typing
+
+.. code:: python
+
+  tmux attach -t session_name
+
+Then, in the session, type
 
 .. code:: python
 
@@ -217,16 +224,21 @@ You will then be prompted for a filename, which should be inputted as
 
 .. code:: python
 
-  he10_logs/filename.h5
+  /home/spt3g/he10_logs/filename.h5
 
-The fridge logger also publishes its read information to a local website, which
+3. Leave the tmux session by typing Ctrl+B, then D.  Open the other tmux session,
+and type
+
+.. code:: python
+
+  cd /home/spt3g/he10_fridge_control/website/
+
+  python -m SimpleHTTPServer 8100
+
+The fridge logger will now publish its read information to a local website, which
 provides the most current measurements (a table that refreshes every few seconds)
 and a plot of recent measurements (this needs to be refreshed in order to show
-changes).
-
-The fridge logger needs to be run in a terminal uninterrupted by other programs.
-Currently, it is run in a tmux terminal called fridge_logger, to allow remote
-access to the terminal and to prevent confusion.
+changes). The web page can be accessed at address localhost:8100.
 
 Sometimes, the fridge logger encounters errors in reading the temperatures in
 from the Lakeshore boxes. If this happens, the logger will print what the error
@@ -236,17 +248,60 @@ signal, which sometimes occurs.
 
 Basic fridge control functions
 ------------------------------
+The fridge control functions are generally found in anl_fridge_control/control.
+Some functions are meant to be run from the terminal, and others need to be run
+in an interactive Python session.  Before using any of the control code, ensure
+that the power supplies and Lakeshore boxes are plugged in and powered on.
+
+Generally in a cooldown, the first control code that you will need to run will be
+to cycle the fridge. This allows the cooldown process to complete and the stage to
+reach base temperature. Because this first cycle is slightly different from the
+normal cycle that is run day-to-day, there is a separate Python script which controls it.
+This script can be called as
+
+.. code:: python
+
+  python /home/spt3g/anl_fridge_control/control/first_cycle.py
+
+The first thing that the first_cycle code does is prompt the user for a logfile.
+This logfile should be the current temperature log (see the previous section for setup
+procedures). After inputting the file name, the script will automatically run the cycle.
+The script uses this logfile to check temperatures, using that information to
+apply changes to voltages. At the end of the cycle, the power supplies will be applying
+a voltage to each of the switches in order to keep the stage at base temperature.
+
+Once the cryostat is at base temperature after the first cycle, there are a number
+of important functions for cycling and changing temperatures. The first of these
+is for running a cycle. In general, if the cryostat is being used to run tests,
+it should be cycled no less than every other day. Heating and cooling using the
+power supplies and PID heater will eventually cause the cryostat to lose the ability
+to cool down to base temperature; however, cycling forces the helium to re-condense,
+allowing the cryostat to cool to base again. To start a cycle, you can call the
+following from the terminal.
+
+.. code:: python
+
+  python /home/spt3g/anl_fridge_control/control/autocycle.py
+
+The script will first prompt the user for a logfile. This is the logfile output by
+the temperature logger. It is generally best to input the version of the logfile
+that ends with _read.h5. After this, the script will prompt the user for a
+hardware map. The hardware map needs to be supplied in order to turn off the mezzanines.
+
+
+
+
 Relevant files:
 
   - basic_functions.py
 
   - autocycle.py
 
-  -first_cycle.py
+  - first_cycle.py
 
 basic_functions.py contains various functions for day-to-day fridge control.
 
-- basic_functions.zero_everything: Turns all voltages to 0.00, and turns off the
+- basic_functions.zero_everything: Turns all voltages to 0.00 V, and turns off the
 PID heater.
 
   - Parameters: None

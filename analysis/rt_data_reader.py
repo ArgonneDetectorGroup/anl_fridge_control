@@ -9,7 +9,7 @@ from pydfmux.core.utils.transferfunctions import convert_TF
 
 #def make_ob_dict(overbias_dir):
 
-flex_to_mezzmods = {'0137':{'14':'13', '11':'14', '21':'21', '17':'23'}, '0135':{'27':'11'}}
+flex_to_mezzmods = {'0137':{'w169':'21', 'w169_lc425a':'22', 'w169_lc433a':'14'}, '0135':{'w169_lcnbberka':'14', 'w169_lcnbberkb':'13'}}
 
 def make_cfp_dict(overbias_dir, board):
     cfp_dict = {}
