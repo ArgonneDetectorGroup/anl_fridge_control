@@ -144,7 +144,7 @@ def pickle_data(ds_temps, data_r, filename):
     filename: The file you want to write this information to
     '''
     f=open(filename, 'w')
-    pickle.dump({"temps":ds_temps, "data":ds_data}, f)
+    pickle.dump({"temps":ds_temps, "data":data_r}, f)
     f.close()
 
 def convert_i2r(ds_data, board, overbias_dir):
