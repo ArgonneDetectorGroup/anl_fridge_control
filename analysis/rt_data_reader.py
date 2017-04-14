@@ -9,25 +9,37 @@ from pydfmux.core.utils.transferfunctions import convert_TF
 
 #def make_ob_dict(overbias_dir):
 
-flex_to_mezzmods = {'0137':{'w169':'21', 'w169_lc425a':'22', 'w169_lc433a':'14'}, '0135':{'w169_lcnbberka':'14', 'w169_lcnbberkb':'13'}}
+flex_to_mezzmods = {'0137':{'w169':'21', 'w169_lc425a':'22', 'w169_lc433a':'14'}}
 
-def make_cfp_dict(overbias_dir, board):
+def make_cfp_dict(overbias_dir):
+    '''
+    Makes a dictionary of calibration factors mapped to bolometer name.
+
+    overbias_dir: the full path to the directory containing overbias files.  Ends with 'data/'
+    board: the iceboard you are looking at
+    '''
     cfp_dict = {}
-    for fc in flex_to_mezzmods[board]:
-        f=open(overbias_dir+'IceBoard_'+str(board)+'.Mezz_'+flex_to_mezzmods[board][fc][0]+'.ReadoutModule_'+flex_to_mezzmods[board][fc][1]+'_OUTPUT.pkl', 'r')
-        ob = pickle.load(f)
-        f.close()
+    for board in flex_to_mezzmods:
+        for fc in flex_to_mezzmods[board]:
+            f=open(overbias_dir+'IceBoard_'+str(board)+'.Mezz_'+flex_to_mezzmods[board][fc][0]+'.ReadoutModule_'+flex_to_mezzmods[board][fc][1]+'_OUTPUT.pkl', 'r')
+            ob = pickle.load(f)
+            f.close()
 
-        for ix in ob['subtargets']:
-            freq = ob['subtargets'][ix]['frequency']
-            bolo = ob['subtargets'][ix]['bolometer']
-            cfp = convert_TF(15, 'nuller', unit='RAW', frequency=freq)
-            cfp_dict[bolo] = cfp
+            for ix in ob['subtargets']:
+                freq = ob['subtargets'][ix]['frequency']
+                bolo = ob['subtargets'][ix]['bolometer']
+                cfp = convert_TF(15, 'nuller', unit='RAW', frequency=freq)
+                cfp_dict[bolo] = cfp
     return cfp_dict
 
 #cfp = convert_TF(15, 'carrier',unit='RAW')
 
 def load_times(time_pkl):
+    '''
+    Loads in the start and end times to find the right place in the logfile.
+
+    time_pkl: the pickle of starttime and endtime produced at the end of take_rt_mini.py
+    '''
     f=open(time_pkl, 'r')
     start_end = pickle.load(f)
     f.close()
@@ -38,6 +50,14 @@ def load_times(time_pkl):
     return starttime, endtime
 
 def read_temps(tempfile, starttime, endtime, sensor='UC Head'):
+    '''
+    Reads temperature data from the logfile.
+
+    tempfile: The logfile used when taking the R(T) data
+    starttime: Output of load_times()
+    endtime: Output of load_times()
+    sensor: The correct item in the logfile (usually UC Head)
+    '''
 	dataread = tables.open_file(tempfile, 'r')
 	datatable = dataread.get_node('/data/' + sensor.replace(' ', '_'))
 
@@ -49,8 +69,13 @@ def read_temps(tempfile, starttime, endtime, sensor='UC Head'):
 	return temp_vals, time_vals
 
 
-def read_netcdf_fast(ledgerman_filename,cfp_dict):
+def read_netcdf_fast(ledgerman_filename,cfp_dict=[]):
+    '''
+    Read in the ledgerman data and separate data into i and q components.
 
+    ledgerman_filename: the .nc file output by ledgerman when take_rt_mini is run
+    cfp_dict: dictionary of calibration factors from make_cfp_dict()
+    '''
     data=Dataset(ledgerman_filename,'r',format='NETCDF4')
     datavars=[var.rstrip('_I') for var in data.variables if '_I' in var]
 
@@ -64,21 +89,33 @@ def read_netcdf_fast(ledgerman_filename,cfp_dict):
     for var in datavars:
         i_comp=data.variables[var+'_I'][ixs]
         q_comp=data.variables[var+'_Q'][ixs]
-        if 'L' not in var:
-            data_i[var]=i_comp*cfp_dict[str(var).replace('_','/')]#cal_factor_pa
-            data_q[var]=q_comp*cfp_dict[str(var).replace('_','/')]#cal_factor_pa
-        else:
-            data_i[var]=i_comp
-            data_q[var]=q_comp
+
+        data_i[var]=i_comp*cfp_dict[str(var).replace('_','/')]#cal_factor_pa
+        data_q[var]=q_comp*cfp_dict[str(var).replace('_','/')]#cal_factor_pa
+
     return data_i, data_q, time_sec
 
 
 def model_temps(temp_vals, time_vals):
+    '''
+    Makes a function modeling the relationship between time and temperature
+
+    temp_vals: Output of read_temps
+    time_vals: Output of read_temps
+    '''
     new_time_vals = np.array(time_vals)-time_vals[0]
     tempfit = scipy.interpolate.interp1d(new_time_vals, temp_vals)
     return tempfit
 
 def downsample_data(time_sec, data_i, data_q, tempfit):
+    '''
+    Cuts the data down to help with transfer, and adds the i and q components in quadrature.
+
+    time_sec: Output of read_netcdf_fast()
+    data_i: Output of read_netcdf_fast()
+    data_q: Output of read_netcdf_fast()
+    tempfit: Output of model_temps()
+    '''
     interp_temps = tempfit(time_sec[0:-3])
 
     ixs = []
@@ -98,7 +135,14 @@ def downsample_data(time_sec, data_i, data_q, tempfit):
 
     return ds_temps, ds_data
 
-def pickle_data(ds_temps, ds_data, filename):
+def pickle_data(ds_temps, data_r, filename):
+    '''
+    Pickles the final data to be saved and transferred
+
+    ds_temps: Output of downsample_data()
+    data_r: Output of convert_i2r()
+    filename: The file you want to write this information to
+    '''
     f=open(filename, 'w')
     pickle.dump({"temps":ds_temps, "data":ds_data}, f)
     f.close()
