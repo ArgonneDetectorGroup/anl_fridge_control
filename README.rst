@@ -7,194 +7,260 @@ February 20, 2017
 This repository contains various Python scripts and tools for running the He10
 cryostat at Argonne National Laboratory.
 
-Connection setup
+The repository is divided into three directories: control, measurement, and analysis.
+The control directory contains important codes for working directly with the
+cryostat to change temperatures. The measurement directory contains codes that
+can be used to make specific measurements of SPT-3G detectors. The analysis
+directory contains some codes that can be used to interpret and plot these measurements.
+
+The control codes contained in this repository are intended for use only with the
+He10 system; it is not designed to be used with the ADR cryostat housed in Building
+360, although certain parts of the codes are intended to be universally applicable
+to certain types of hardware (these cases are noted in the following sections).
+The measurement and analysis codes are inteded for use with the SPT-3G detectors
+and readout electronics, and work with algorithms stored in other repositories,
+such as pydfmux.
+
+Hardware
+--------
+Before we start on the codes that can be used to control the cryostat temperature
+and take data, we need to make sure that all of the correct hardware is in place.
+You will need 3-4 power supplies, 1 Lakeshore 340 temperature controller,
+1 Lakeshore diode reader, a MOXA box with a connection to the computer and correct
+cables, and cables connecting the thermometry to the cryostat.
+
+Before you begin, ensure that all of the hardware is plugged in correctly. You
+should connect the power supplies and Lakeshore boxes to the MOXA box using the
+cables that came with the box (one side of the cable looks like an ethernet
+connector, while the other connects to the port underneath the power cord on the
+power supplies and Lakeshore boxes). The thermometry cables should be connected
+at the top of the cryostat.
+
+Turn on the power supplies and Lakeshore boxes. The power supplies and Lakeshore
+boxes can have two types of connections: RS-232 and GPIB. The system that we
+have in place uses the RS-232 setting, as it allows for our connection with the
+MOXA box and also reduces noise in the system.
+
+To check that the power supplies are in RS-232 mode, press the I/O Config button
+and turn the knob until RS-232 is displayed. Press the I/O Config button again.
+Now the power supply will display the baud rate. The factory setting for baud rate
+is 9600, and this is the setting that we commonly use; however, if you wish to
+change the baud rate, you can do so by turning the knobs. Pressing the I/O Config
+button again will display the parity and number of data bits. The setting that
+we commonly use is NONE 8 BITS, but turning the dial will allow you to change to
+ODD 7 BITS or EVEN 7 BITS. Pressing the I/O Config button again will save the
+configuration.
+
+To check the connection settings for the Lakeshore boxes, you can press the
+Interface button. This will display the serial interface settings, including
+baud rate, parity, and number of data bits. The Next Setting button allows you
+to move to the next listed parameter. The up and down buttons allow you to change
+to the desired setting.
+
+If you are installing a new Lakeshore box or power supply, you will need to make
+note of the baud rate, parity, number of data bits, byte size, and MOXA port for
+the new box. This information is important for setting up the interface software,
+which will be covered in the next section.
+
+Cryostat control
 ----------------
-Relevant Files:
+This section will first go through the files contained in the control directory,
+and then give some specific directions on how to perform certain tasks.
 
-- Driver files (xxxx.txt)
+1. Control files
 
-- lakeshore.py
+  a. Driver files
 
-- powersupply.py
+      Driver files are text documents that contain the keys for communicating with
+      the power supplies that control the pumps and switches for heating and cooling
+      the stages in the cryostat. There are seven driver files, most of which refer to a
+      particular part of the fridge and either a pump or a switch (He4p.txt refers to
+      the Helium-4 pump; He4s.txt to the He-4 switch; He3ICp.txt to the He-3 Interstage pump;
+      He3ICs.txt to the He-3 Interstage switch; He3UCp.txt to the Ultrastage pump;
+      He3UCs.txt to the He-3 Ultrastage switch; and Helmholtz.txt refers to the power
+      supply used in Helmholtz coil testing (see sinusoidal.py)). Each driver file
+      must only refer to one output of a power supply, and must give a list of keys,
+      as follows.
 
-- serial_connections.py
+      - port: the serial address of the power supply you are trying to access
 
-Currenty, we can connect to our power supplies and Lakeshore boxes through serial
-connections. Each of these electronics boxes is plugged into a port on the MOXA
-box, which runs a connection to the computer. However, because all power supplies
-are different, we need to supply the computer an easy way to talk to these boxes.
-This is done with driver files, which give a list of the remote interface commands,
-as well as serial connection information, that can be used to communicate.
+      - baudrate: the baud rate for the serial connection
 
-The driver files are stored as He4p.txt, He4s.txt, He3ICp.txt, He3ICs.txt,
-He3UCp.txt, and He3UCs.txt.  Each driver file corresponds to one output on a
-power supply, and takes the following format.  All of the keys in this list are
-needed to make the connections and send the correct information, so it is important
-to include all of them and ensure that the information matches that which your
-power supply needs. In the case that a power supply does not take one of these keys
-(i.e., if it only has one output), then the key can be set equal to None (note that
-this is not the same as the parity option of none).
+      - parity: parity for the serial connection
 
-List of driver file keys:
+      - stopbits: the stop bits for the serial connection
 
-  - port: the serial address of the power supply you are trying to acces
+      - bytesize: the number of bits for the serial connection
 
-  - baudrate: the baud rate for the serial connection (9600)
+      - timeout: a timeout for the serial connection
 
-  - parity: parity for the serial connection (odd, even, or none)
+      - term: termination character needed to end a command
 
-  - stopbits: the stop bits for the serial connection (none, 1, or 2)
+      - v_ask: statement to query the voltage output
 
-  - bytesize: the number of bits for the serial connection (5, 6, 7, or 8)
+      - v_apply: statement to apply a voltage
 
-  - timeout: a timeout for the serial connection (1)
+      - select: statement to select the desired output
 
-  - term: termination character needed to end a command (\r\n)
+      - idn: statement to query the identification of the power supply
 
-  - v_ask: statement to query the voltage output
+      - output_on: statement to turn on the output
 
-  - v_apply: statement to apply a voltage
+      - remote: statement to set the power supply in remote mode
 
-  - select: statement to select the desired output
+      - error_ask: statement to query errors
 
-  - idn: statement to query the identification of the power supply
+      - sep: separation character (for power supplies that require an output selection)
 
-  - output_on: statement to turn on the output
+      - vmin: the output's minimum allowable voltage
 
-  - remote: statement to set the power supply in remote mode
+      - vmax: the output's maximum allowable voltage
 
-  - error_ask: statement to query errors
+      In order to add a new power supply or change a current power supply to a
+      different one, you need to create or edit a driver file to include the commands
+      that the power supply needs to read in order to execute what you want. Certain
+      keys (select, output_on, remote, and sep) may not be applicable to your power
+      supply; in this case, they can simply be set to None. An example driver file
+      can be seen below.
 
-  - sep: separation character (for power supplies that require an output selection)
+      ::
+        port=/dev/ttyr12
+        baudrate=9600
+        parity=none
+        stopbits=2
+        bytesize=8
+        timeout=1
+        term=\r\n
+        v_ask=MEAS:VOLT?
+        v_apply=APPL
+        select=INST:NSEL 2
+        idn=*IDN?
+        output_on=OUTP ON
+        remote=SYST:REM
+        error_ask=SYST:ERR?
+        sep=;:
+        vmin=0
+        vmax=35
 
-  - vmin: the output's minimum allowable voltage
+  b. PowerSupply class
 
-  - vmax: the output's maximum allowable voltage
+      Simply writing a driver file does not provide any connection with the device
+      you are trying to communicate with; it is just a template for things that
+      you should be able to write to the power supply. The PowerSupply class,
+      which is contained in powersupply.py, is the Python class which allows you
+      to set up connections.
 
-So, below, you will find an example of a driver file.
-::
-  port=/dev/ttyr12
-  baudrate=9600
-  parity=none
-  stopbits=2
-  bytesize=8
-  timeout=1
-  term=\r\n
-  v_ask=MEAS:VOLT?
-  v_apply=APPL
-  select=INST:NSEL 2
-  idn=*IDN?
-  output_on=OUTP ON
-  remote=SYST:REM
-  error_ask=SYST:ERR?
-  sep=;:
-  vmin=0
-  vmax=35
+      PowerSupply requires you to supply a driver file, which it uses to write
+      to the power supplies. Currently, PowerSupply assumes that your driver
+      file is stored in anl_fridge_control/control. An example of setting up one
+      of these class objects is shown below.
 
+      .. code:: python
 
-At present, the connections to the power supplies and PID heater are controlled
-through two python modules, powersupply.py and lakeshore.py. Each of these
-creates a class (PowerSupply or TempControl), which opens a serial connection to
-the remote electronics. powersupply.py must also be supplied driver files
-(.txt) which specify the type of connection and the remote interface commands.
-Here, those driver files are stored as He4p.txt, He4s.txt, He3ICp.txt, He3ICs.txt,
-He3UCp.txt, and He3UCs.txt.
+        He4p = powersupply.PowerSupply('He4p.txt')
 
-The PowerSupply class is set up to retrieve text files from anl_fridge_control/control,
-by the name of the text file. PowerSupply objects are called as such:
+      PowerSupply provides functions for connecting with the power supplies and
+      troubleshooting issues. The callable functions are listed below.
 
-.. code:: python
+      - who_am_i: asks the power supply to send its identification, and reads out
+      this signal
 
-  He4p = powersupply.PowerSupply('He4p.txt')
+        - Parameters: None
 
-You can call as many or as few connections as you like; thus, you can use the
-PowerSupply class for power supplies not normally involved in the He10 fridge
-control (i.e., for sending current through a Helmholtz coil).
+        - Returns: string of the power supply's identification
 
-The serial_connections script establishes the power supply and ChaseLS class
-objects.  Importing this script allows you to create a usable connection with
-the power supplies and Lakeshore340 box via their serial ports; if you wish to
-change the connections, you can do so by modifying the serial_connections script.
+      - error: asks the power supply to send all errors in queue, and reads this out
 
-The PowerSupply class provides a number of functions for connecting with the
-power supplies and troubleshooting problems.
+        - Parameters: None
 
-  - who_am_i: asks the power supply to send its identification, and reads out
-  this signal
+        - Returns: list of strings of errors
 
-    - Parameters: None
+      - remote_set: sets the power supply to remote mode
 
-    - Returns: string of the power supply's identification
+        - Parameters: None
 
-  - error: asks the power supply to send all errors in queue, and reads this out
+        - Returns: None
 
-    - Parameters: None
+      - read_voltage: queries the power supply for the current voltage output, and
+      reads back this message
 
-    - Returns: list of strings of errors
+        - Parameters: None
 
-  - remote_set: sets the power supply to remote mode
+        - Returns: string of voltage output
 
-    - Parameters: None
+      - set_voltage: sets the voltage to a specified number
 
-    - Returns: None
+        - Parameters: voltage (float)
 
-  - read_voltage: queries the power supply for the current voltage output, and
-  reads back this message
+        - Returns: None
 
-    - Parameters: None
+      - set_vi: sets the voltage and current to specified numbers
 
-    - Returns: string of voltage output
+        - Parameters: current (float), voltage (float)
 
-  - set_voltage: sets the voltage to a specified number
+        - Returns: None
 
-    - Parameters: voltage (float)
+      This is not a comprehensive list of every query and command you can possibly
+      send to the power supply, simply a group of commands that are commonly needed
+      for our purposes. It is possible to send a command outside of this list. To
+      do so, you will need to know the exact message required to get the result
+      you are looking for, which can be found in the manual for the power supply.
+      Then, to send the message, you can use the serial_connex.write() and
+      serial_connex.readline() functions, as shown below.
 
-    - Returns: None
+      .. code:: python
 
-  - set_vi: sets the voltage and current to specified numbers
+        He4p.serial_connex.write('APPL?\r\n')
+        He4p.serial_connex.readline()
 
-    - Parameters: current (float), voltage (float)
+      The PowerSupply class is intended to be general enough to be used with
+      any power supply, so long as it is provided a driver file that includes
+      all of the correct statements for your power supply. At present, the class
+      can only be used with a serial connection; however, it can be amended to
+      include other types of connections, such as IEEE-488 or ethernet.
 
-    - Returns: None
+  c. TempControl class
 
-If you want to send a query or command that is not one of the preset functions,
-you can do so by accessing the serial connection (through the function serial_connex),
-and writing the prompt that the power supply should be able to read.  For example,
-if you wanted to know what the voltage you last set for the He4 pump was, you
-could type
+      The TempControl class, which is contained in lakeshore.py, also uses
+      a serial connection to communicate with the Lakeshore340 Temperature
+      Controller. It does not require a driver file, and does not attempt to be
+      general to all temperature controllers. It does, however, require a serial
+      address and a list of four channel names. An example of creating this
+      connection is shown below.
 
-.. code:: python
+      .. code:: python
 
-  He4p.serial_connex.write('APPL?\r\n')
-  He4p.serial_connex.readline()
+        ChaseLS = lakeshore.TempControl('/dev/ttyr18', ['A','B','C1','C2'])
 
-The PowerSupply class is general enough to be used with a variety of power supplies,
-provided you supply a driver file that includes all of the correct statements for
-your specific power supply.
+      TempControl provides a few functions for connecting with the Lakeshore340
+      box. These functions are listed below.
 
-Similarly, the TempControl class provides a few ways of communicating with a
-Lakeshore340 Temperature Controller:
+      - set_PID_temp: sets the temperature of the heater for the UC Head
 
-  - set_PID_temp: sets the temperature of the heater for the UC Head
+        - Parameters: loop (1), temperature (float, in Kelvin)
 
-    - Parameters: loop (1), temperature (float, in Kelvin)
+        - Returns: None
 
-    - Returns: None
+      - set_heater_range: sets the heater range, which controls power to the PID
 
-  - set_heater_range: sets the heater range, which controls power to the PID
+        - Parameters: heater range (integer 0-5)
 
-    - Parameters: heater range (integer 0-5)
+        -Returns: None
 
-    -Returns: None
+      - get_temps: reads out the temperatures directly from the Lakeshore340
 
-If you want to send a query or command that is not one of the preset functions,
-you can do so with the connex function.  For example, if you wanted to query the
-Celsius temperature for channel A, you could type
+        - Parameters: None
 
-.. code:: python
+        - Returns: dictionary of channel names and corresponding temperatures
 
-  ChaseLS.connex.write('CRDG? A\r\n')
-  ChaseLS.connex.readline()
+      If you want to send a query or command that is not one of the preset functions,
+      you can do so with the connex function.  For example, if you wanted to query the
+      Celsius temperature for channel A, you could type
+
+      .. code:: python
+
+        ChaseLS.connex.write('CRDG? A\r\n')
+        ChaseLS.connex.readline()
 
 Fridge logging
 --------------
