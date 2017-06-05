@@ -9,7 +9,7 @@ from pydfmux.core.utils.transferfunctions import convert_TF
 
 #def make_ob_dict(overbias_dir):
 
-flex_to_mezzmods = {'0137':{'w169':'21', 'w169_lc425a':'22', 'w169_lc433a':'14'}}
+flex_to_mezzmods = {'0137':{'w169':'21', 'w169_lc425a':'22'}, '0135':{'w169_lcnbberka':'24', 'w169_lcnbberkb':'23'}}
 
 def make_cfp_dict(overbias_dir):
     '''
@@ -192,6 +192,8 @@ def find_r_parasitic(data_r, ds_temps, temp_range, data_dict):
 		data_dict[bolo]['rpar'] = rpars_mean
 	return data_dict
 
+
+
 bad_bolos = []
 def plot_each_bolo(ds_temps, data_r, data_dict):
 	for bolo in data_dict.keys():
@@ -215,7 +217,7 @@ def find_tc(data_r, ds_temps, temp_range, data_dict):
         try:
             data_dict[bolo]['tc']=mean(points)
         except:
-            print bolo
+            data_dict[bolo]['tc']=('none')
     return data_dict
 
 def tc_plots(ds_temps, data_r, data_dict):
