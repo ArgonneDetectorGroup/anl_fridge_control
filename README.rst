@@ -68,7 +68,8 @@ Cryostat control
 This section will first go through the files contained in the control directory,
 and then give some specific directions on how to perform certain tasks.
 
-1. Driver files
+Driver files
+============
 
 Driver files are text documents that contain the keys for communicating with
 the power supplies that control the pumps and switches for heating and cooling
