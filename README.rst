@@ -1,3 +1,4 @@
+===============
 README
 ===============
 Lauren Saunders
@@ -23,7 +24,7 @@ and readout electronics, and work with algorithms stored in other repositories,
 such as pydfmux.
 
 Hardware
---------
+========
 Before we start on the codes that can be used to control the cryostat temperature
 and take data, we need to make sure that all of the correct hardware is in place.
 You will need 3-4 power supplies, 1 Lakeshore 340 temperature controller,
@@ -64,12 +65,12 @@ the new box. This information is important for setting up the interface software
 which will be covered in the next section.
 
 Cryostat control
-----------------
+================
 This section will first go through the files contained in the control directory,
 and then give some specific directions on how to perform certain tasks.
 
 Driver files
-============
+------------
 
 Driver files are text documents that contain the keys for communicating with
 the power supplies that control the pumps and switches for heating and cooling
@@ -143,8 +144,8 @@ can be seen below.
   vmin=0
   vmax=35
 
-2. PowerSupply class
-
+PowerSupply class
+-----------------
 Simply writing a driver file does not provide any connection with the device
 you are trying to communicate with; it is just a template for things that
 you should be able to write to the power supply. The PowerSupply class,
@@ -225,8 +226,8 @@ all of the correct statements for your power supply. At present, the class
 can only be used with a serial connection; however, it can be amended to
 include other types of connections, such as IEEE-488 or ethernet.
 
-3. TempControl class
-
+TempControl class
+-----------------
 The TempControl class, which is contained in lakeshore.py, also uses
 a serial connection to communicate with the Lakeshore340 Temperature
 Controller. It does not require a driver file, and does not attempt to be
@@ -274,8 +275,8 @@ shown below.
   # read back the message from the Lakeshore340
   ChaseLS.connex.readline()
 
-4. Serial connections
-
+Serial connections
+------------------
 While the TempControl and PowerSupply classes are made to work with any number
 of power supplies and Lakeshore340 boxes, our present setup only has 3 power
 supplies and 1 Lakeshore340. Because these same connections need to be called
@@ -303,8 +304,8 @@ below.
 
 - ChaseLS: Lakeshore340, with PID channel set to A (UC Stage)
 
-5. Basic temperature control
-
+Basic temperature control
+-------------------------
 Once you have imported serial_connections, it is relatively easy to change
 the UC and IC stage temperatures. Some basic guidelines to changing temperature
 are provided here; however, if you need more specific help, you should ask
@@ -400,8 +401,8 @@ set a voltage is shown below.
 Usually, turning on a voltage to the pumps will raise the stage temperature,
 and turning on a voltage to the switches will lower the stage temperature.
 
-6. Automated cycling
-
+Automated cycling
+-----------------
 One of the most frequently useful control scripts is autocycle.py. This code
 runs an automatic cycle of the fridge, which allows the liquid helium to
 recondense and bring the stages back down to base temperature.
@@ -437,8 +438,8 @@ heater power setting to 0. After the cycle runs, it will return the stages to
 base temperature, and the switches will be turned on (He4 switch to 4.00 V,
 He3 IC switch to 4.00 V, and He3 UC switch to 3.00 V).
 
-7. First cycle
-
+First cycle
+-----------
 While you will normally use autocycle.py to run a cycle, the first cycle of
 a cooldown is slightly different (and takes longer). Therefore, there is a
 separate code which runs an automated cycle at the beginning of the cooldown.
@@ -447,8 +448,8 @@ an interactive Python sessions, and asks you for a log file location, which you
 should type in at the start of the cycle. For more information about cooldown
 procedures, see the Cooldown Procedures section.
 
-8. basic_functions.py
-
+basic_functions.py
+------------------
 The last code in the control directory that is meant for temperature control
 is basic_functions.py. This code contains a few functions that are either
 called by other scripts or that are useful for day-to-day endeavors. These
@@ -476,7 +477,7 @@ ensure that the hardware map you are using in pydfmux/spt3g/northern_tuning_para
 is correct.
 
 Fridge logging
---------------
+==============
 The fridge_logger_anl.py code
 (https://github.com/adamanderson/he10_fridge_control/blob/master/logger/fridge_logger_anl.py)
 reads in data from Lakeshore340 and Lakeshore218 boxes. It then outputs data to
@@ -526,130 +527,8 @@ is, and will try 10 times to read back a valid response from the electronics.
 This is done to prevent the code from crashing if a Lakeshore box sends an invalid
 signal, which sometimes occurs.
 
-Basic fridge control functions
-------------------------------
-The fridge control functions are generally found in anl_fridge_control/control.
-Some functions are meant to be run from the terminal, and others need to be run
-in an interactive Python session.  Before using any of the control code, ensure
-that the power supplies and Lakeshore boxes are plugged in and powered on.
-
-Generally in a cooldown, the first control code that you will need to run will be
-to cycle the fridge. This allows the cooldown process to complete and the stage to
-reach base temperature. Because this first cycle is slightly different from the
-normal cycle that is run day-to-day, there is a separate Python script which controls it.
-This script can be called as
-
-.. code:: python
-
-  python /home/spt3g/anl_fridge_control/control/first_cycle.py
-
-The first thing that the first_cycle code does is prompt the user for a logfile.
-This logfile should be the current temperature log (see the previous section for setup
-procedures). After inputting the file name, the script will automatically run the cycle.
-The script uses this logfile to check temperatures, using that information to
-apply changes to voltages. At the end of the cycle, the power supplies will be applying
-a voltage to each of the switches in order to keep the stage at base temperature.
-
-Once the cryostat is at base temperature after the first cycle, there are a number
-of important functions for cycling and changing temperatures. The first of these
-is for running a cycle. In general, if the cryostat is being used to run tests,
-it should be cycled no less than every other day. Heating and cooling using the
-power supplies and PID heater will eventually cause the cryostat to lose the ability
-to cool down to base temperature; however, cycling forces the helium to re-condense,
-allowing the cryostat to cool to base again. To start a cycle, you can call the
-following from the terminal.
-
-.. code:: python
-
-  python /home/spt3g/anl_fridge_control/control/autocycle.py
-
-The script will first prompt the user for a logfile. This is the logfile output by
-the temperature logger. It is generally best to input the version of the logfile
-that ends with _read.h5. After this, the script will prompt the user for a
-hardware map. The hardware map needs to be supplied in order to turn off the mezzanines.
-
-
-
-
-Relevant files:
-
-  - basic_functions.py
-
-  - autocycle.py
-
-  - first_cycle.py
-
-basic_functions.py contains various functions for day-to-day fridge control.
-
-- basic_functions.zero_everything: Turns all voltages to 0.00 V, and turns off the
-PID heater.
-
-  - Parameters: None
-
-  - Returns: None
-
-- basic_functions.start_of_day: Warms the UC Head to 650mK, then heats and tunes
-SQUIDs and takes a rawdump.
-
-  - Parameters: current temperature logfile, set_squid_feedback (default=False),
-  set_gain (default=False)
-
-    - The current logfile is whatever is created by the logger. You should be
-    using the file called he10_logs/xxxx_read.h5
-    - set_squid_feedback is a pydfmux call, which sets SQUID feedback if True
-    - set_gain is a pydfmux call, which sets gain if True
-
-  - Returns: some output directories for heating and tuning
-
-  - At the end of start_of_day, the UC Head will be held at 650 mK, with the PID
-  heater set to 650 mK at heater range 3 and He3 UC pump at 1.5 volts. If you
-  want to lower the temperature, be sure to change the PID temperature and
-  heater range as well as the He3 UC pump voltage.
-
-  - It is suggested that the He3 UC pump voltage be set to 1.00 V if you want
-    to sit at 600 mK, and be turned to 0.00 V if you are planning on moving to a
-    lower temperature.
-
-- basic_functions.finish_cycle: Runs the part of a cycle that waits for the heat exchanger temperature to rise and then cools the fridge to base.
-
-  - Called by other scripts; can be called if you are manually calling part of
-  the cycle (i.e. if something goes wrong midway through)
-
-  - Parameters: current temperature logfile
-
-    - The current logfile is whatever is created by the logger. You should be
-    using the file called he10_logs/xxxx_read.h5
-
-  - Returns: None
-
-autocycle.py is a script that runs the day-to-day cycling code.  It should be
-called from the command line.
-
-- Parameters: None
-
--Raw inputs:
-
-  - logfile: The file produced by anl_fridge_logger.py, which contains fridge
-  temperature data.
-
-  - hardware map yml file: The full path, starting at the home directory, to the
-  hardware map.  This is used exclusively to turn off the IceBoard mezzanines.
-
-- Returns: None
-
-first_cycle.py is a script that runs the specialized script for the first cycle
-of a cooldown. It should be called from the command line.
-
-- Parameters: None
-
-- Raw inputs:
-  - logfile: The file produced by anl_fridge_logger.py, which contains fridge
-  temperature data.
-
-- Returns: None (but hopefully a nice, cold fridge!)
-
 Wafer testing
--------------
+=============
 Some functions for measuring and analyzing R(T) and G(T) are included.
 
 - measure_GofT overbiases the bolometers at 650 mK, then drops temperature and
@@ -681,7 +560,7 @@ and T_c for each bolometer. At present, it is best to be copied and pasted into
 an ipython session, as it does not yet run straight through (it will break).
 
 Miscellaneous
--------------
+=============
 There are also some miscellaneous helper scripts for specific extra testing.
 
 - sinusoidal.sinuvolt: generates sinusoidal voltages. The purpose of this
