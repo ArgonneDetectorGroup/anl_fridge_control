@@ -2,7 +2,8 @@ README
 ===============
 Lauren Saunders
 
-February 20, 2017
+Original: February 20, 2017
+Revised: June 8, 2017
 
 This repository contains various Python scripts and tools for running the He10
 cryostat at Argonne National Laboratory.
@@ -67,204 +68,415 @@ Cryostat control
 This section will first go through the files contained in the control directory,
 and then give some specific directions on how to perform certain tasks.
 
-1. Control files
+1. Driver files
 
-  a. Driver files
+    Driver files are text documents that contain the keys for communicating with
+    the power supplies that control the pumps and switches for heating and cooling
+    the stages in the cryostat. There are seven driver files, most of which refer to a
+    particular part of the fridge and either a pump or a switch (He4p.txt refers to
+    the Helium-4 pump; He4s.txt to the He-4 switch; He3ICp.txt to the He-3 Interstage pump;
+    He3ICs.txt to the He-3 Interstage switch; He3UCp.txt to the Ultrastage pump;
+    He3UCs.txt to the He-3 Ultrastage switch; and Helmholtz.txt refers to the power
+    supply used in Helmholtz coil testing (see sinusoidal.py)). Each driver file
+    must only refer to one output of a power supply, and must give a list of keys,
+    as follows.
 
-      Driver files are text documents that contain the keys for communicating with
-      the power supplies that control the pumps and switches for heating and cooling
-      the stages in the cryostat. There are seven driver files, most of which refer to a
-      particular part of the fridge and either a pump or a switch (He4p.txt refers to
-      the Helium-4 pump; He4s.txt to the He-4 switch; He3ICp.txt to the He-3 Interstage pump;
-      He3ICs.txt to the He-3 Interstage switch; He3UCp.txt to the Ultrastage pump;
-      He3UCs.txt to the He-3 Ultrastage switch; and Helmholtz.txt refers to the power
-      supply used in Helmholtz coil testing (see sinusoidal.py)). Each driver file
-      must only refer to one output of a power supply, and must give a list of keys,
-      as follows.
+    - port: the serial address of the power supply you are trying to access
 
-      - port: the serial address of the power supply you are trying to access
+    - baudrate: the baud rate for the serial connection
 
-      - baudrate: the baud rate for the serial connection
+    - parity: parity for the serial connection
 
-      - parity: parity for the serial connection
+    - stopbits: the stop bits for the serial connection
 
-      - stopbits: the stop bits for the serial connection
+    - bytesize: the number of bits for the serial connection
 
-      - bytesize: the number of bits for the serial connection
+    - timeout: a timeout for the serial connection
 
-      - timeout: a timeout for the serial connection
+    - term: termination character needed to end a command
 
-      - term: termination character needed to end a command
+    - v_ask: statement to query the voltage output
 
-      - v_ask: statement to query the voltage output
+    - v_apply: statement to apply a voltage
 
-      - v_apply: statement to apply a voltage
+    - select: statement to select the desired output
 
-      - select: statement to select the desired output
+    - idn: statement to query the identification of the power supply
 
-      - idn: statement to query the identification of the power supply
+    - output_on: statement to turn on the output
 
-      - output_on: statement to turn on the output
+    - remote: statement to set the power supply in remote mode
 
-      - remote: statement to set the power supply in remote mode
+    - error_ask: statement to query errors
 
-      - error_ask: statement to query errors
+    - sep: separation character (for power supplies that require an output selection)
 
-      - sep: separation character (for power supplies that require an output selection)
+    - vmin: the output's minimum allowable voltage
 
-      - vmin: the output's minimum allowable voltage
+    - vmax: the output's maximum allowable voltage
 
-      - vmax: the output's maximum allowable voltage
+    In order to add a new power supply or change a current power supply to a
+    different one, you need to create or edit a driver file to include the commands
+    that the power supply needs to read in order to execute what you want. Certain
+    keys (select, output_on, remote, and sep) may not be applicable to your power
+    supply; in this case, they can simply be set to None. An example driver file
+    can be seen below.
 
-      In order to add a new power supply or change a current power supply to a
-      different one, you need to create or edit a driver file to include the commands
-      that the power supply needs to read in order to execute what you want. Certain
-      keys (select, output_on, remote, and sep) may not be applicable to your power
-      supply; in this case, they can simply be set to None. An example driver file
-      can be seen below.
+    ::
+      port=/dev/ttyr12
+      baudrate=9600
+      parity=none
+      stopbits=2
+      bytesize=8
+      timeout=1
+      term=\r\n
+      v_ask=MEAS:VOLT?
+      v_apply=APPL
+      select=INST:NSEL 2
+      idn=*IDN?
+      output_on=OUTP ON
+      remote=SYST:REM
+      error_ask=SYST:ERR?
+      sep=;:
+      vmin=0
+      vmax=35
 
-      ::
-        port=/dev/ttyr12
-        baudrate=9600
-        parity=none
-        stopbits=2
-        bytesize=8
-        timeout=1
-        term=\r\n
-        v_ask=MEAS:VOLT?
-        v_apply=APPL
-        select=INST:NSEL 2
-        idn=*IDN?
-        output_on=OUTP ON
-        remote=SYST:REM
-        error_ask=SYST:ERR?
-        sep=;:
-        vmin=0
-        vmax=35
+2. PowerSupply class
 
-  b. PowerSupply class
+    Simply writing a driver file does not provide any connection with the device
+    you are trying to communicate with; it is just a template for things that
+    you should be able to write to the power supply. The PowerSupply class,
+    which is contained in powersupply.py, is the Python class which allows you
+    to set up connections.
 
-      Simply writing a driver file does not provide any connection with the device
-      you are trying to communicate with; it is just a template for things that
-      you should be able to write to the power supply. The PowerSupply class,
-      which is contained in powersupply.py, is the Python class which allows you
-      to set up connections.
+    PowerSupply requires you to supply a driver file, which it uses to write
+    to the power supplies. Currently, PowerSupply assumes that your driver
+    file is stored in anl_fridge_control/control. An example of setting up one
+    of these class objects is shown below.
 
-      PowerSupply requires you to supply a driver file, which it uses to write
-      to the power supplies. Currently, PowerSupply assumes that your driver
-      file is stored in anl_fridge_control/control. An example of setting up one
-      of these class objects is shown below.
+    .. code:: python
 
-      .. code:: python
+      import anl_fridge_control.control.powersupply as PS
 
-        He4p = powersupply.PowerSupply('He4p.txt')
+      # set He4p as the connection dictated by driver file He4p.txt
+      He4p = PS.PowerSupply('He4p.txt')
 
-      PowerSupply provides functions for connecting with the power supplies and
-      troubleshooting issues. The callable functions are listed below.
+    PowerSupply provides functions for connecting with the power supplies and
+    troubleshooting issues. The callable functions are listed below.
 
-      - who_am_i: asks the power supply to send its identification, and reads out
-      this signal
+    - who_am_i: asks the power supply to send its identification, and reads out
+    this signal
 
-        - Parameters: None
+      - Parameters: None
 
-        - Returns: string of the power supply's identification
+      - Returns: string of the power supply's identification
 
-      - error: asks the power supply to send all errors in queue, and reads this out
+    - error: asks the power supply to send all errors in queue, and reads this out
 
-        - Parameters: None
+      - Parameters: None
 
-        - Returns: list of strings of errors
+      - Returns: list of strings of errors
 
-      - remote_set: sets the power supply to remote mode
+    - remote_set: sets the power supply to remote mode
 
-        - Parameters: None
+      - Parameters: None
 
-        - Returns: None
+      - Returns: None
 
-      - read_voltage: queries the power supply for the current voltage output, and
-      reads back this message
+    - read_voltage: queries the power supply for the current voltage output, and
+    reads back this message
 
-        - Parameters: None
+      - Parameters: None
 
-        - Returns: string of voltage output
+      - Returns: string of voltage output
 
-      - set_voltage: sets the voltage to a specified number
+    - set_voltage: sets the voltage to a specified number
 
-        - Parameters: voltage (float)
+      - Parameters: voltage (float)
 
-        - Returns: None
+      - Returns: None
 
-      - set_vi: sets the voltage and current to specified numbers
+    - set_vi: sets the voltage and current to specified numbers
 
-        - Parameters: current (float), voltage (float)
+      - Parameters: current (float), voltage (float)
 
-        - Returns: None
+      - Returns: None
 
-      This is not a comprehensive list of every query and command you can possibly
-      send to the power supply, simply a group of commands that are commonly needed
-      for our purposes. It is possible to send a command outside of this list. To
-      do so, you will need to know the exact message required to get the result
-      you are looking for, which can be found in the manual for the power supply.
-      Then, to send the message, you can use the serial_connex.write() and
-      serial_connex.readline() functions, as shown below.
+    This is not a comprehensive list of every query and command you can possibly
+    send to the power supply, simply a group of commands that are commonly needed
+    for our purposes. It is possible to send a command outside of this list. To
+    do so, you will need to know the exact message required to get the result
+    you are looking for, which can be found in the manual for the power supply.
+    Then, to send the message, you can use the serial_connex.write() and
+    serial_connex.readline() functions, as shown below.
 
-      .. code:: python
+    .. code:: python
 
-        He4p.serial_connex.write('APPL?\r\n')
-        He4p.serial_connex.readline()
+      # ask the power supply what voltage the output is set to
+      He4p.serial_connex.write('APPL?\r\n')
+      # read back the response from the power supply
+      He4p.serial_connex.readline()
 
-      The PowerSupply class is intended to be general enough to be used with
-      any power supply, so long as it is provided a driver file that includes
-      all of the correct statements for your power supply. At present, the class
-      can only be used with a serial connection; however, it can be amended to
-      include other types of connections, such as IEEE-488 or ethernet.
+    The PowerSupply class is intended to be general enough to be used with
+    any power supply, so long as it is provided a driver file that includes
+    all of the correct statements for your power supply. At present, the class
+    can only be used with a serial connection; however, it can be amended to
+    include other types of connections, such as IEEE-488 or ethernet.
 
-  c. TempControl class
+3. TempControl class
 
-      The TempControl class, which is contained in lakeshore.py, also uses
-      a serial connection to communicate with the Lakeshore340 Temperature
-      Controller. It does not require a driver file, and does not attempt to be
-      general to all temperature controllers. It does, however, require a serial
-      address and a list of four channel names. An example of creating this
-      connection is shown below.
+    The TempControl class, which is contained in lakeshore.py, also uses
+    a serial connection to communicate with the Lakeshore340 Temperature
+    Controller. It does not require a driver file, and does not attempt to be
+    general to all temperature controllers. It does, however, require a serial
+    address and a list of four channel names. An example of creating this
+    connection is shown below.
 
-      .. code:: python
+    .. code:: python
 
-        ChaseLS = lakeshore.TempControl('/dev/ttyr18', ['A','B','C1','C2'])
+      import anl_fridge_control.control.lakeshore as LS
 
-      TempControl provides a few functions for connecting with the Lakeshore340
-      box. These functions are listed below.
+      ChaseLS = LS.TempControl('/dev/ttyr18', ['A','B','C1','C2'])
 
-      - set_PID_temp: sets the temperature of the heater for the UC Head
+    TempControl provides a few functions for connecting with the Lakeshore340
+    box. These functions are listed below.
 
-        - Parameters: loop (1), temperature (float, in Kelvin)
+    - set_PID_temp: sets the temperature of the heater for the UC Head
 
-        - Returns: None
+      - Parameters: loop (1), temperature (float, in Kelvin)
 
-      - set_heater_range: sets the heater range, which controls power to the PID
+      - Returns: None
 
-        - Parameters: heater range (integer 0-5)
+    - set_heater_range: sets the heater range, which controls power to the PID
 
-        -Returns: None
+      - Parameters: heater range (integer 0-5)
 
-      - get_temps: reads out the temperatures directly from the Lakeshore340
+      -Returns: None
 
-        - Parameters: None
+    - get_temps: reads out the temperatures directly from the Lakeshore340
 
-        - Returns: dictionary of channel names and corresponding temperatures
+      - Parameters: None
 
-      If you want to send a query or command that is not one of the preset functions,
-      you can do so with the connex function.  For example, if you wanted to query the
-      Celsius temperature for channel A, you could type
+      - Returns: dictionary of channel names and corresponding temperatures
 
-      .. code:: python
+    If you want to send a query or command that is not one of the preset functions,
+    you can do so with the connex function. Once you look up the necessary commands
+    from the manual, you can send a message with the connex.write() function and
+    can read back a message with the connex.readline() function. An example is
+    shown below.
 
-        ChaseLS.connex.write('CRDG? A\r\n')
-        ChaseLS.connex.readline()
+    .. code:: python
+
+      # ask the Lakeshore340 what the Celsius temperature of Channel A is
+      ChaseLS.connex.write('CRDG? A\r\n')
+      # read back the message from the Lakeshore340
+      ChaseLS.connex.readline()
+
+4. Serial connections
+
+    While the TempControl and PowerSupply classes are made to work with any number
+    of power supplies and Lakeshore340 boxes, our present setup only has 3 power
+    supplies and 1 Lakeshore340. Because these same connections need to be called
+    in order to make any temperature adjustment, the connections can all be set
+    up by importing serial_connections.py. This short python code establishes
+    connections and configures the Lakeshore340. If you wish to modify the
+    connections by adding or removing temperature controllers or power supplies,
+    you should ensure that you modify serial_connections.py in order to match
+    the setup you want. Many other scripts also import this one and use the
+    connections to change temperatures, so it is important to ensure that this
+    script is accurate to your setup. The current setup and definitions are listed
+    below.
+
+    - He4p: Helium-4 pump
+
+    - He4s: Helium-4 switch
+
+    - He3ICp: Helium-3 Interstage pump
+
+    - He3ICs: Helium-3 Interstage switch
+
+    - He3UCp: Helium-3 Ultracold pump
+
+    - He3UCs: Helium-3 Ultracold switch
+
+    - ChaseLS: Lakeshore340, with PID channel set to A (UC Stage)
+
+5. Basic temperature control
+
+    Once you have imported serial_connections, it is relatively easy to change
+    the UC and IC stage temperatures. Some basic guidelines to changing temperature
+    are provided here; however, if you need more specific help, you should ask
+    Gensheng, who is very well-versed in the operation of this cryostat.
+
+    Generally, the temperature that is most relevant to our measurements is that
+    of the UC Stage. Currently, this is read by Channel A on the Lakeshore340, and
+    can usually be seen by looking at the display on this box. However, because
+    of the structure of the stage, a change in temperature of the UC Stage is also
+    influenced by a change in temperature of the IC Stage. Although the IC Stage
+    will usually be warmer than the UC Stage, it is important that when you change
+    the temperature of the UC Stage, you also similarly change that of the IC
+    Stage.
+
+    The first, and most easily-explained, way of changing the UC Stage temperature
+    is by setting temperatures on the PID heater, which is done through the
+    connection with the Lakeshore340. When you set the PID heater to a certain
+    temperature, you run a current through a resistor heater that is mounted in
+    thermal contact with the UC Stage. The heater can help you to settle at and
+    hold a particular temperature stably. In order to do this, you need to set both
+    the temperature that you want the UC Stage to reach, as well as a power level
+    for the heater (an integer between 0 and 5, inclusive). It is generally advisable
+    to leave at least one second between sending the commands for setting these
+    levels, as simultaneous signals to the Lakeshore340 are not always interpreted
+    well. To set a temperature with the PID heater, you can use the set_PID_temp()
+    function of TempControl, and to set a power level, you can use set_heater_range().
+    Keep in mind that set_PID_temp requires two inputs: the loop (almost always 1)
+    and the temperature in Kelvin (not milliKelvin). An example is shown below.
+
+    .. code:: python
+
+      import anl_fridge_control.control.serial_connections as sc
+
+      # set the heater temperature for the UC Stage to 500 mK
+      sc.ChaseLS.set_PID_temp(1, 0.500)
+      # set the heater power level to 2 (1.5 mW)
+      sc.ChaseLS.set_heater_range(2)
+
+    When choosing a heater range, you should check the percentage of the heater's
+    power range that is being used. It is generally not a good idea to run the
+    heater at 100%, and when you are trying to heat the UC Stage, you should start
+    by heating the pumps (see next paragraph) so that the entire power burden is
+    not on the PID heater.
+
+    The heater is not the only way to change the temperature of the stage, and is
+    not always the best option (for example, while this is being written, the PID
+    heater is not currently functional due to a disconnection inside of the
+    cryostat). The other method of changing the temperature relies on the pumps
+    and switches, which refer to circuitry in the He-10 fridge itself. When you
+    change the voltage on the pumps, you are sending current through a resistor
+    that will heat up the charcoal inside of the corresponding refrigerator "head".
+    This ultimately causes the stage to heat. When you change the voltage on the
+    switches, you are sending a current through a gas-gap switch, which ultimately
+    causes the stage to cool. Keep in mind that you are not directly heating or
+    cooling the stage -- you are heating an element of the fridge, which causes
+    a change in temperature on the stage because of the thermal connection between
+    the fridge head and the stage. Because of this, it can take a few minutes for
+    a change in voltage to a pump or switch to cause a change in stage temperature
+    (usually, your pump will need to heat above 18 K to cause the stage to heat,
+    and a switch will need to heat above 13 K to start cooling the stage).
+
+    The pumps and switches are controlled by the three power supplies. Currently,
+    the pumps are Output 1 or the 25V output of each power supply, and the switches
+    are Output 2 or the 6V output of each power supply. Each power supply output
+    has a maximum voltage, which is established in the driver file, and most of
+    the current power supplies do not allow negative voltages. While you have
+    the IceBoard mezzanines turned on, it is not advisable to set a power supply
+    voltage greater than 4.00 V.
+
+    Because of the relationship between the pumps and switches, you should never
+    set a voltage for both a pump and a switch on the same head of the fridge.
+    Doing so will cause you to lose the ability to condense the liquid helium in
+    the head, and you will no longer be able to control the temperature. Always
+    ensure that the pump voltage is off before you turn on a switch voltage, and
+    ensure that the switch temperature is below 5.00 K and the switch voltage is
+    set to 0 before turning on a pump voltage.
+
+    For normal testing, you should usually leave the He-4 switch set to 4.00 V.
+    This helps the stages to stay cool enough to bring temperatures back down to
+    base if you need to. Other than that, it is usually advisable to use the He-3
+    Ultracold and Interstage pumps and switches together. An example of how to
+    set a voltage is shown below.
+
+    .. code:: python
+
+      import anl_fridge_control.control.serial_connections as sc
+
+      # set the He-3 Ultracold pump to 2.00 V
+      sc.He3UCp.set_voltage(2.00)
+      # set the He-3 Interstage pump to 2.00 V
+      sc.He3ICp.set_voltage(2.00)
+
+    Usually, turning on a voltage to the pumps will raise the stage temperature,
+    and turning on a voltage to the switches will lower the stage temperature.
+
+6. Automated cycling
+
+    One of the most frequently useful control scripts is autocycle.py. This code
+    runs an automatic cycle of the fridge, which allows the liquid helium to
+    recondense and bring the stages back down to base temperature.
+
+    You should always make sure that the IceBoard mezzanines are powered off
+    before you run a cycle! It is generally a good idea to run a cycle at least
+    every other day, and every day that you are changing temperatures or using
+    the pumps and switches frequently. The cycle takes between 8 and 9 hours, so
+    it should be started at the end of a work day and left to run overnight. If
+    you have been using another connection via the MOXA box, you should make sure
+    that all of your MOXA cables are connected to the correct power supplies and
+    Lakeshore boxes, or the cycle will not run properly.
+
+    To run the automated cycle, you can type from the command line:
+
+    .. code
+
+      python /home/spt3g/anl_fridge_control/control/autocycle.py
+
+    or, from an interactive Python session:
+
+    .. code:: python
+
+      execfile('/home/spt3g/anl_fridge_control/control/autocycle.py')
+
+    The script will then prompt you with a raw_input to give the file name for the
+    fridge log (see the Fridge logging section). It will automatically fill in
+    the initial part of the file location (/home/spt3g/he10_logs/), and you should
+    type only the file name. Should you want to change the location of a log file,
+    you will need to edit this part of the script. Once you give the log file,
+    the script will automatically turn all switches, pumps, the PID heater, and
+    heater power setting to 0. After the cycle runs, it will return the stages to
+    base temperature, and the switches will be turned on (He4 switch to 4.00 V,
+    He3 IC switch to 4.00 V, and He3 UC switch to 3.00 V).
+
+7. First cycle
+
+    While you will normally use autocycle.py to run a cycle, the first cycle of
+    a cooldown is slightly different (and takes longer). Therefore, there is a
+    separate code which runs an automated cycle at the beginning of the cooldown.
+    Like autocycle, first_cycle.py can be called from either the command line or
+    an interactive Python sessions, and asks you for a log file location, which you
+    should type in at the start of the cycle. For more information about cooldown
+    procedures, see the Cooldown Procedures section.
+
+8. basic_functions.py
+
+    The last code in the control directory that is meant for temperature control
+    is basic_functions.py. This code contains a few functions that are either
+    called by other scripts or that are useful for day-to-day endeavors. These
+    functions are outlined below.
+
+    - zero_everything: This is usually a safety function, which turns off all of
+    the pumps, switches, and the PID heater, and sets the heater power to 0. It
+    is often called by other scripts in the case of a failure that would otherwise
+    allow the fridge to overheat, and is also called by autocycle at the beginning
+    of the script.
+
+    - finish_cycle: This function is run at the end of autocycle and first_cycle,
+    and waits for the heat exchanger temperature to rise slightly above its
+    minimum before turning off pumps and turning on switches. It is generally not
+    useful for calling on its own.
+
+    - start_of_day: This function is meant to run the first few procedural tasks
+    that need to be done at the beginning of a day, before other measurements are
+    made. It heats the UC Stage temperature to 650 mK, initializes the IceBoard,
+    heats and tunes squids, and takes a rawdump (see Testing Procedures). The
+    function is intended to help save time while you are waiting for all of these
+    things to happen, so that you can do other things. You need to specify whether
+    you will use the PID heater or only the pumps to heat the stage. You also should
+    ensure that the hardware map you are using in pydfmux/spt3g/northern_tuning_params
+    is correct.
 
 Fridge logging
 --------------
-The fridge_logger_anl.py code (https://github.com/adamanderson/he10_fridge_control/blob/master/logger/fridge_logger_anl.py)
+The fridge_logger_anl.py code
+(https://github.com/adamanderson/he10_fridge_control/blob/master/logger/fridge_logger_anl.py)
 reads in data from Lakeshore340 and Lakeshore218 boxes. It then outputs data to
 a .h5 file and a _read.h5 file, which are used to create plots and current
 temperature readings on the website.
