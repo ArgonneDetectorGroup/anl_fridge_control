@@ -122,7 +122,8 @@ keys (select, output_on, remote, and sep) may not be applicable to your power
 supply; in this case, they can simply be set to None. An example driver file
 can be seen below.
 
-::
+.. code
+
   port=/dev/ttyr12
   baudrate=9600
   parity=none
