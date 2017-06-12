@@ -9,11 +9,14 @@
 # no current is chosen.  LJS
 
 import anl_fridge_control.powersupply as PS
+import time
 from math import *
 
-def sinuvolt(driverfile, A, freq, tint, tf, R, y=0, t0=0):
+def sinuvolt(driverfile, A, tint, tf, R, freq=0.01, y=0, t0=0):
 	power=PS.PowerSupply(driverfile)
-	t=t0
+	if t0!=0:
+		time.sleep(t0)
+	t=0
 	while t<tf:
 		v=-0.5*A*cos(2*pi*freq*t)+(0.5*A)+y
 		name.set_vi(v,v/R)
