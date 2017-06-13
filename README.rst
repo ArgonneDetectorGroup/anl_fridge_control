@@ -2,6 +2,7 @@
 README
 ===============
 Lauren Saunders
+ljsaunders@uchicago.edu
 
 Original: February 20, 2017
 Revised: June 8, 2017
@@ -25,6 +26,8 @@ such as pydfmux.
 
 Hardware
 ========
+Room Temperature Hardware
+-------------------------
 Before we start on the codes that can be used to control the cryostat temperature
 and take data, we need to make sure that all of the correct hardware is in place.
 You will need 3-4 power supplies, 1 Lakeshore 340 temperature controller,
@@ -64,10 +67,135 @@ note of the baud rate, parity, number of data bits, byte size, and MOXA port for
 the new box. This information is important for setting up the interface software,
 which will be covered in the next section.
 
-Cryostat control
+Cold Hardware
+-------------
+It is important to check all of the hardware that will go inside of the cryostat
+before you close up, as it will be impossible to fix any problems once you are
+cold.
+
+First, check your on-wafer hardware. Ensure that the connections between
+LC boards and the connectors that will plug into the SQUID boards are not damaged
+by checking them with a multimeter. Additionally, make sure that the flex cables
+connecting your LC boards to either resistors or detectors are oriented correctly.
+The flex cables should sit flat in the zif connectors, and should be oriented so
+that left handed cables go to the left-most zif, and right-handed cables go to the
+right-most zif. You should also make sure that all screws and washers are secured.
+
+The next step is installation in the cryostat. Once you connect the wafer holder
+to the stage and are satisfied with the direction that the cables are coming out
+of the stage, you should carefully connect the connectors to the SQUID boards and
+tighten the screws. You should then make sure that the cables do not come in contact
+with any part of the milliKelvin stage or the 4K stage.
+
+Before closing up you should also take a moment to check your thermometry. Ensure
+that the resistor heater that is thermally connected to the ultracold stage is
+properly connected and that the wires are not broken.
+
+Cooling Down
+============
+Once the cryostat is closed and flipped over, you can connect the pulse tube and
+then begin pumping down to vacuum. Plug the power cord into the pressure gauge,
+and connect the hose of the vacuum pump to the valve at the top of the cryostat.
+You should begin with the valve closed, and just pump down the hose with the
+roughing pump. Once that is done, you can slowly open the valve, keeping the
+pressure reading on the pump around 100 mTorr. You should not open the valve quickly
+or begin pumping with the valve open because this may cause damage to the wafer.
+Eventually, the valve will be open completely, which will be evident by a lack of
+quick change in the pressure reading on the pump when you turn the valve.
+
+After you have pumped down to _? mTorr, you can turn on the _? pump and allow the
+pressure to come down to 1e-4 mTorr on the cryostat's pressure gauge. Once you
+are done pumping down, you can close the cryostat's valve and turn off the vacuum
+pumps, allowing the fans to slowly spin down. Once this is done, you can remove
+the vacuum pump. To turn on the pulse tube, go into the inner hallway and turn
+on the water. Then, you can power on the pulse tube (in that hallway) and turn
+on the linear driver (a switch on the power strip in the cabinet with the
+IceBoards). You should hear the pulse tube start pumping.
+
+At this point, you should start logging the temperature. To learn how to start the
+fridge logger, see the Fridge Logging section of this file. Once the main plate
+temperature reading is below 3.5 K, you can start the first_cycle script, which
+will cool the stages down to base temperature (see the Cryostat Control section
+for more information).
+
+Remote Sessions
+===============
+It is frequently useful to run certain codes in detachable windows, so that if
+you are running something remotely, it will not crash should you lose your internet
+connection. This is sometimes done with tmux sessions.
+
+To open a tmux session, type into a terminal
+
+.. code
+
+  tmux new -s session_name
+
+where session_name is the name of your new session (i.e. fridge_logger, measurement, etc.)
+You will automatically attach to your session. To detach, type Ctrl+B, then D. To
+re-attach, you can type
+
+.. code
+
+  tmux attach -t session_name
+
+The tmux session usually prevents you from scrolling up to see earlier things in
+the terminal. If you wish to do this, you can type Ctrl+B, then [. You can then
+scroll up and down with your arrow keys, but cannot type anything. To get back to
+the current line and begin typing again, you can type Ctrl+B, Q, Esc.
+
+You can also use screen or a non-detachable terminal to run tests, but should be
+sure that if anyone else might be running something in the cryostat remotely, they
+know not to run anything simultaneously with you.
+
+Fridge Logging
+==============
+The fridge_logger_anl.py code
+(https://github.com/adamanderson/he10_fridge_control/blob/master/logger/fridge_logger_anl.py)
+reads in data from Lakeshore340 and Lakeshore218 boxes. It then outputs data to
+a .h5 file and a _read.h5 file, which are used to create plots and current
+temperature readings on the website.
+
+The fridge logger, as well as the web server that services it, are usually run in
+detachable sessions. To start the logger, attach to your detachable session
+(screen or tmux). Before you begin the logger, make sure that any computer
+that might be attached your session has a connection with X windows available
+(either ssh -X, or from the desktop in the lab). Then, in the terminal, type
+
+.. code
+
+  python /home/spt3g/he10_fridge_control/logger/fridge_logger_anl.py
+
+You will then be prompted for a filename, which should be inputted as
+
+.. code
+
+  /home/spt3g/he10_logs/filename.h5
+
+Once you have started the logger, you can create the webserver so that you can
+monitor the temperatures. To do so, open another detachable session (screen or
+tmux) and type in the terminal
+
+.. code
+
+  cd /home/spt3g/he10_fridge_control/website/
+
+  python -m SimpleHTTPServer 8100
+
+The fridge logger will now publish its read information to a local website, which
+provides the most current measurements (a table that refreshes every few seconds)
+and a plot of recent measurements (this needs to be refreshed in order to show
+changes). The web page can be accessed at address localhost:8100.
+
+Sometimes, the fridge logger encounters errors in reading the temperatures in
+from the Lakeshore boxes. If this happens, the logger will print what the error
+is, and will try 10 times to read back a valid response from the electronics.
+This is done to prevent the code from crashing if a Lakeshore box sends an invalid
+signal, which sometimes occurs.
+
+Cryostat Control
 ================
-This section will first go through the files contained in the control directory,
-and then give some specific directions on how to perform certain tasks.
+This section will go through the files contained in the control directory, as well
+as some specific directions on how to perform certain tasks.
 
 Driver files
 ------------
@@ -476,59 +604,325 @@ you will use the PID heater or only the pumps to heat the stage. You also should
 ensure that the hardware map you are using in pydfmux/spt3g/northern_tuning_params
 is correct.
 
-Fridge logging
-==============
-The fridge_logger_anl.py code
-(https://github.com/adamanderson/he10_fridge_control/blob/master/logger/fridge_logger_anl.py)
-reads in data from Lakeshore340 and Lakeshore218 boxes. It then outputs data to
-a .h5 file and a _read.h5 file, which are used to create plots and current
-temperature readings on the website.
+Testing
+=======
+This section will go through different types of measurements for which there is
+code in this directory. It is not an exhaustive list of all of the tests you
+could possibly perform. These are simply tests that have previously been set up
+for detector characterization and magnetic field testing.
 
-The fridge logger, as well as the web server that services it, are run in tmux sessions.
-The steps for launching the fridge logger and monitoring temperatures are:
+First Steps
+-----------
+Before you begin doing any testing, you will need an accurate hardware map. A
+hardware map is a group of files that specifies the frequency schedule of the
+channels read out by each LC board, the mappings of channel numbers and LC boards
+to mezzanines and modules on the IceBoard, and the list of hardware objects that
+should be recognized by the computer. Hardware maps are contained in the
+hardware_maps directory, and must be remade every time you cool down, especially
+if you changed anything about your setup between cooldowns.
 
-1. Open two tmux sessions by typing "tmux" into the terminal.
+To make a hardware map, you need to start by heating and tuning SQUIDs and taking
+a network analysis at low temperature (300 mK). Counterintuitively, you will need
+to reference an existing hardware map in order to do these things; however, the
+hardware map that you are referencing only needs to list the correct IceBoard(s),
+mezzanines, SQUID Controllers, and SQUIDs, so you can either generate this by
+hand or simply use an old hardware map that has these elements listed correctly.
 
-2. Attach to one of the tmux sessions by typing
+Once you have your reference hardware map, you should edit the parameter file to
+list this hardware map. To do so, open pydfmux/spt3g/northern_tuning_params.yaml
+in a text editor, and specify your reference map as hwm_location at the beginning
+of the document. You can also specify in this document whether you want to run a
+mesh netanal. A mesh netanal takes a quick network analysis, then takes more data
+points around the peaks in order to determine the exact frequencies of the peaks.
+If you do not run a mesh network analysis, you will need to run a separate
+algorithm to fit a function to the peaks.
+
+After you have set your reference hardware map, you can open an interactive Python
+session (it is usually preferable to do so in a detachable session) and run your
+tests. To do so, type
 
 .. code:: python
 
-  tmux attach -t session_name
+  # import the script
+  import pydfmux.spt3g.northern_tuning_script as nts
 
-Then, in the session, type
+  # heat squids
+  nts.run_heat_squids()
+  # wait for this to run (about 30 minutes)
+
+  # tune squids
+  nts.run_tune_squids()
+  # wait for this to run (about 5 minutes)
+
+  # take a rawdump to get a sense of noise
+  nts.run_take_rawdump()
+  # wait for this to run (about 1 minute)
+
+  # run the network analysis
+  nts.run_take_netanal()
+  # wait for this to run (30-90 minutes)
+
+After you have run the network analysis, you can make your hardware map. This can
+be done by hand, by using the peaks outputted from the network analysis as the
+channel frequencies, but doing so is arduous. You can more easily make the hardware
+map using a premade code.
+
+To make the hardware map using the code, you will first need to create a directory
+for your hardware map, and then write a metaHWM.csv file. This lists the aspects
+of the hardware map elements for each LC board. You will need to include the year,
+wafer, iceboard, squid_board, squid, lc_chip, side, and flex_cable (a pair). You
+will then need to make a build directory in the hardware map directory, and include
+a make_hwm_anl_template file (you can find a sample file in pydfmux/spt3g). Once
+you execute functions to make the hardware map, you will be able to see the hardware
+map .yaml file, along with directories lcboards, mappings, and wafer.
+
+The lcboards directory contains a .csv file for each LC board that you provided
+in the hardware map. Each of these files contains a list of channel numbers and
+a frequency for each channel number. These frequencies are the same as the peak
+frequencies outputted by the network analysis.
+
+The wafers directory contains a .csv file for each wafer you have provided in your
+hardware map (frequently only one, but multiple can be present in the directory
+if you have a need for that). If you have generated the hardware map using the
+code procedure, then the wafer file has, for each channel, a physical_name
+(pixel.band.polarization), name (year.side.flex_pair.squid.frequency),
+observing_band (90, 150, or 220), overbias (True or False), pixel, pol_xy
+(polarization), and tune (True or False).
+
+The mappings directory contains at least one .csv file, which can contain mappings
+for any or all channels in the wafer file. For each channel, the file lists the
+lc_path (LC name as in the file name in lcboards/channel number in that
+file), bolometer (wafer name/physical_name from the wafer file), and channel (in
+the form iceboard/mezzanine/module/channel).
+
+Once you have your hardware map, you should be able to perform whatever tasks you
+need for testing. Note that you may need to set the overbias and tune settings  in
+the wafer file to false for particular channels if they prevent the other channels
+from overbiasing or dropping into the transition, as is sometimes the case.
+
+Resistance vs. Temperature Measurement
+--------------------------------------
+One of the primary tests that we run to characterize detectors is one of resistance
+vs. temperature, or R(T). The purpose of this test is to measure normal and
+parasitic resistances, and to get an idea of what the detectors' critical temperature
+is. The steps for taking this measurement are fairly simple.
+
+1. With the UC Stage at 650 mK, overbias channels with a small amplitude (usually
+amp=0.0002).
+
+2. Start taking timestreamed data and record the time that you started.
+
+3. Lower the temperature slowly from 650 mK to 350 mK.
+
+4. End your data-taking and record the end time.
+
+5. Begin taking data again, and record your start time.
+
+6. Raise the temperature back up to 650 mK.
+
+7. End your data-taking and record the end time.
+
+Unfortunately, this process does take a few hours, so you should be prepared to
+run it for that long. However, in order to make it easier to run this test at a
+rate slow enough to make the temperature readings as close to accurate to the
+temperatures of the detectors, there is a script that allows you to run downward
+and upward temperature sweeps while recording data and the start and end times.
+This script is measure_RofT.py, and is contained in the measurement directory.
+
+The measure_RofT script allows you to start the R(T) measurement protocol from
+any temperature below 650 mK. Before you begin, you should change the overbias
+amplitude in northern_tuning_params.yaml to 0.0002. Then, you should be able to
+start running the script. The script first turns off switches, in case they were
+on, then heats the stage up to 650 mK using both the pumps and the PID heater,
+overbiases the bolometers, and starts running ledgerman. It then steps down the
+temperature until it reaches 400 mK, waits for the UC Stage to reach 400 mK, then
+saves the start and end times for the downward sweep and terminates ledgerman.
+It then restarts ledgerman with a new file name, and raises the temperature slowly
+until it reaches 650 mK, waits for the UC Stage to reach this temperature, records
+the start and end times for this sweep, and terminates ledgerman again.
+
+!!four files
+!!settings
+
+In addition to measure_RofT, another similar script, take_rt_mini.py, can also
+be used for this measurement. take_rt_mini is useful for R(T) measurements that
+require more manual changes, such as measurements that use multiple IceBoards and
+measurements that do not use the PID heater to change the temperature.
+
+Resistance vs. Temperature Analysis
+-----------------------------------
+After you've taken the R(T) data, you will need to go through a few more steps
+to produce plots and important data. A group of functions for this are contained
+in analysis/rt_data_reader.py.
+
+Before you start working with rt_data_reader, you should make a correct
+flex_to_mezzmods dictionary. The structure of the dictionary is
 
 .. code:: python
 
-  python /home/spt3g/he10_fridge_control/logger/fridge_logger_anl.py
+  flex_to_mezzmods = {'iceboard':{'lc_1':'mezzmod1', 'lc_2':'mezzmod2', ...}}
 
-You will then be prompted for a filename, which should be inputted as
+where mezzmod1 and mezzmod2 are the mezzanine and module numbers, combined into
+one string (i.e. '11', '12', '13', '14', '21', '22', '23', '24'). This dictionary
+is used in a couple of the the other functions to cycle through all of the
+overbias files, so it is important to ensure that it is correct.
 
-.. code:: python
+The first function in rt_data_reader is make_cfp_dict, which makes a dictionary
+of conversion factors for each overbiased bolometer. The one input necessary is
+the overbias directory, which was produced just before you started taking the
+timestream. The function returns a dictionary mapping bolometer names to the
+correct conversion factor.
 
-  /home/spt3g/he10_logs/filename.h5
+Once you have the dictionary of conversion factors, you can run read_netcdf_fast,
+which reads in the ledgerman output file. The required variables for this function
+are the name of the file produced by ledgerman that you want to look at, and the
+dictionary of conversion factors. This function returns three components: data_i,
+which is a dictionary of the timestreamed I data indexed by bolometer name; data_q,
+which is a dictionary of the timestreamed Q data indexed by bolometer name' and
+time_sec, which is simply the time values recorded at every moment of datataking.
 
-3. Leave the tmux session by typing Ctrl+B, then D.  Open the other tmux session,
-and type
+The ledgerman data, however, does not record the UC Stage temperature. For that,
+you will need to reference the fridge logger file. Start by using the load_times
+function in rt_data_reader, which takes an input of the pkl file for the times
+outputted by measure_RofT, and returns the start and end times. Using these start
+and end times, you can use the read_temps function to return corresponding lists
+of temperature and time values. The inputs for that function are the temperature
+log file, the start time, and the end time.
 
-.. code:: python
+Unfortunately, the times in the temperature log file do not match up exactly with
+those in the ledgerman data: ledgerman takes data at a much faster rate. The
+model_temps function attempts to help with this discrepancy by making a fit of
+the temperature and time data. The function requires you to input the temperature
+values and time values from read_temps, and returns a function labeled tempfit.
+Next, you can use downsample_data to return ds_temps, which uses tempfit to
+interpolate temperatures based on time_sec, and ds_data, which is a dictionary
+indexed by bolometer of the I data and Q data for each bolometer added in
+quadrature. While it is very easy to modify downsample_data to only return a
+portion of the data, it currently does not downsample in that way. However, this
+data is still in units of current: it does not yet give us all of the information
+that we are looking for. The final step for data conversion is convert_i2r, which
+takes the I data (ds_data), IceBoard number, and overbias directory, divides the
+voltage supplied in the overbias file by each datapoint in ds_data, and returns
+data_r, a dictionary indexed by bolometer of the resistance data at each point.
 
-  cd /home/spt3g/he10_fridge_control/website/
+A function called pickle_data, which takes ds_temps, data_r, and a new file name,
+exists to help if you want to pickle the data that you have already interpreted,
+in the event that you want to save it at that point. The purpose of this function
+is to provide some consistency in producing these pickle files; it is not a strictly
+necessary step in the analysis.
 
-  python -m SimpleHTTPServer 8100
+Once you have gotten arrays of resistance data that match with the temperature
+values, you are ready to start making plots and finding detector characteristics.
+make_data_dict is the first function for this purpose. make_data_dict takes data_r
+and returns a dictionary of bolometers, which are matched to empty dictionaries.
+To start filling the dictionary, you can go through the next two functions,
+find_r_total and find_r_parasitic. The first of these requires inputs of data_r,
+ds_temps, a minimum temperature, and the original data dictionary. It returns
+a dictionary with a total resistance listed for each bolometer. Similarly,
+find_r_parasitic requires inputs of data_r, ds_temps, a range of temperature values
+to look at, and the data dictionary. It returns the same dictionary, this time
+adding a parasitic resistance for each bolometer.
 
-The fridge logger will now publish its read information to a local website, which
-provides the most current measurements (a table that refreshes every few seconds)
-and a plot of recent measurements (this needs to be refreshed in order to show
-changes). The web page can be accessed at address localhost:8100.
+!!code snippets
 
-Sometimes, the fridge logger encounters errors in reading the temperatures in
-from the Lakeshore boxes. If this happens, the logger will print what the error
-is, and will try 10 times to read back a valid response from the electronics.
-This is done to prevent the code from crashing if a Lakeshore box sends an invalid
-signal, which sometimes occurs.
+Of course, this program is not perfect in its ability to catch bolometers that
+do not behave as they should. The function plot_each_bolo allows you to make a
+plot of the resistance data for each bolometer individually, and also plots with
+this the total and parasitic resistances. Should you find a bolometer that does
+not transition, it should be added to the list bad_bolos. Once you have examined
+each bolometer, you can move on to finding the transition temperature.
 
-Wafer testing
-=============
+You can find transition temperatures by running find_tc, which requires inputs of
+data_r, ds_temps, a range in temperature over which to look for a transition, and
+the data dictionary with parasitic and total resistance for each bolometer. It
+will then attempt to find the transition temperature by searching in the temperature
+range given. If the function is unable to find a transition temperature, it will
+set the transition temperature in the dictionary to None. You can then plot the
+resistance data, parasitic resistance line, total resistance line, and, if it is
+not None, a line for the transition temperature for each bolometer individually
+to ensure that the function has found a real transition. You now have a dictionary
+of the information you needed to find to describe the characteristics of the
+detectors that are evident from R(T). You will also need some of this information
+(particularly the parasitic resistances) for future reference (i.e. when looking
+at G(T)).
+
+G(T) Testing
+------------
+
+
+
+Magnetic Field Testing
+----------------------
+It is sometimes useful to run tests that look at the behavior of detectors in
+the presence of an outside magnetic field. In order to do this, you will need a
+little more hardware than is usually present.
+
+First, you will need wire coils. A pair of coils with 14 turns each and radii of
+34 cm are already in the lab. You can use these individually if you do not necessarily
+need a uniform field, or together as a pair. Second, you will need another power
+supply to generate a current in the coil(s), and any electronics equipment that
+might be necessary to safely connect the power supply and coils. Finally, you will
+need a power resistor, which normally resides in the electronics drawer in the lab.
+To hang your coil(s) close to the cryostat, it is usually easiest to use either
+velcro or duct tape.
+
+!! warnings
+
+Once you have installed the coil(s) and connected your circuit, you will need to
+connect the power supply to the MOXA box. You can do this with an extra MOXA cable,
+or, if one does not exist, you can use the MOXA cable from the He-4 power supply.
+If you decide to do this, be sure not to change any of the settings on the He-4
+power supply and keep in mind that you can no longer remotely control that power
+supply. You will need to reconnect it before you run a cycle.
+
+The driver file for the power supply used in this setup is Helmholtz.txt, which
+can be found in the control directory of anl_fridge_control. Make sure that you
+edit this file to match your power supply and MOXA connection before you start
+testing.
+
+The functions that are useful for controlling the power supply to the coils can
+be found in sinusoidal.py, which is in the control directory of anl_fridge_control.
+This Python script contains two functions:
+
+- sinuvolt: sets current and voltage of the power supply that vary sinusoidally.
+
+  - Parameters:
+
+    - driverfile: the driver file ('Helmholtz.txt')
+
+    - A: the amplitude, or maximum voltage, that you want to reach
+
+    - tint: the time interval that the code will wait before setting a new voltage
+    and current
+
+    - tf: the final time, at which the power supply will be reset to 0.0 V and 0.0 A
+
+    - R: the resistance of the power resistor, used to calculate the correct current
+
+    - freq: the frequency in radians/sec of the oscillation. Preset to 0.01
+
+    - y: the offset of the initial voltage value from 0. Preset to 0
+
+    - t0: the wait time at the beginning of the code before the voltage starts
+    varying. Preset to 0
+
+  - Returns: None
+
+- helmholtz_test: collects a timestream while the voltage is varying. Parameters
+match those of sinuvolt.
+
+TODO: save what is output from power supply
+
+Before running helmholtz_test, you should ensure that the correct hardware map(s)
+and output filenames are listed at the beginning of the script. As a note, if you
+are using two or more IceBoards, you should have a separate hardware map and
+ledgerman process running for each IceBoard. This is because the IceBoard clocks
+are not synced, and therefore trying to run ledgerman with multiple IceBoards causes
+an error. Both functions in this script should be run from an interactive Python
+session.
+
+G(T)
+----
 Some functions for measuring and analyzing R(T) and G(T) are included.
 
 - measure_GofT overbiases the bolometers at 650 mK, then drops temperature and
@@ -558,22 +952,3 @@ from high temperature to low temperature.
 to plot R(T) curves for each of the bolometers and find R_normal, R_parasitic,
 and T_c for each bolometer. At present, it is best to be copied and pasted into
 an ipython session, as it does not yet run straight through (it will break).
-
-Miscellaneous
-=============
-There are also some miscellaneous helper scripts for specific extra testing.
-
-- sinusoidal.sinuvolt: generates sinusoidal voltages. The purpose of this
-function has thus far been to generate a sinusoidally varying voltage to run
-through a Helmholtz coil, for magnetic testing.
-
-  - Parameters: driverfile, A, freq, tint, R, y (default=0), t0 (default=0)
-
-    - driverfile: the driver file for the power supply, stored in he10_fridge_control/Lauren
-    - A: amplitude (the highest number that you want the voltage to reach)
-    - freq: the frequency of the sinusoidal curve (this is a mathematical
-    property)
-    - tint: the time interval between changing voltages
-    - R: known resistance of a resistor in series with the power supply
-    - y: the offset from 0 that you want the voltage to start fluctuating at
-    - t0: start time (should usually be 0)
