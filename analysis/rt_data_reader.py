@@ -19,7 +19,7 @@ def make_cfp_dict(overbias_dir):
     cfp_dict = {}
     for board in flex_to_mezzmods:
         for fc in flex_to_mezzmods[board]:
-            f=open(overbias_dir+'IceBoard_'+str(board)+'.Mezz_'+flex_to_mezzmods[board][fc][0]+'.ReadoutModule_'+flex_to_mezzmods[board][fc][1]+'_OUTPUT.pkl', 'r')
+            f=open(overbias_dir+'/data/IceBoard_'+str(board)+'.Mezz_'+flex_to_mezzmods[board][fc][0]+'.ReadoutModule_'+flex_to_mezzmods[board][fc][1]+'_OUTPUT.pkl', 'r')
             ob = pickle.load(f)
             f.close()
 
@@ -48,7 +48,7 @@ def load_times(time_pkl):
 
     return starttime, endtime
 
-def read_temps(tempfile, starttime, endtime, sensor='UC Head'):
+def read_temps(tempfile, starttime, endtime, sensor='UC Stage'):
     '''
     Reads temperature data from the logfile.
 
@@ -181,7 +181,7 @@ def make_data_dict(data_r):
 			data_dict[str(bolo)] = {}
 	return data_dict
 
-def find_r_normal(data_r, ds_temps, temp_min, data_dict):
+def find_r_total(data_r, ds_temps, temp_min, data_dict):
 	for bolo in data_dict.keys():
 		rnorms = []
 		for ix in range(len(ds_temps)):
@@ -226,18 +226,28 @@ def find_tc(data_r, ds_temps, temp_range, data_dict):
         try:
             data_dict[bolo]['tc']=mean(points)
         except:
-            data_dict[bolo]['tc']=('none')
+            data_dict[bolo]['tc']=None
     return data_dict
 
 def tc_plots(ds_temps, data_r, data_dict):
     for bolo in data_dict.keys():
         if bolo not in bad_bolos:
-            plt.figure()
-            plt.plot(ds_temps, data_r[bolo], color='C0')
-            plt.axhline(data_dict[bolo]['rnormal'], color='C2')
-            plt.axhline(data_dict[bolo]['rpar'], color='C2')
-            plt.axvline(data_dict[bolo]['tc'], color='C3')
-            plt.title(str(bolo))
-            plt.ylabel('Resistance ($\Omega$)')
-            plt.xlabel('Temperature (K)')
-            plt.show()
+            if data_dict[bolo]['tc']!=None:
+                plt.figure()
+                plt.plot(ds_temps, data_r[bolo], color='C0')
+                plt.axhline(data_dict[bolo]['rnormal'], color='C2')
+                plt.axhline(data_dict[bolo]['rpar'], color='C2')
+                plt.axvline(data_dict[bolo]['tc'], color='C3')
+                plt.title(str(bolo))
+                plt.ylabel('Resistance ($\Omega$)')
+                plt.xlabel('Temperature (K)')
+                plt.show()
+            elif data_dict[bolo]['tc']==None:
+                plt.figure()
+                plt.plot(ds_temps, data_r[bolo], color='C0')
+                plt.axhline(data_dict[bolo]['rnormal'], color='C2')
+                plt.axhline(data_dict[bolo]['rpar'], color='C2')
+                plt.title(str(bolo))
+                plt.ylabel('Resistance ($\Omega$)')
+                plt.xlabel('Temperature (K)')
+                plt.show()
