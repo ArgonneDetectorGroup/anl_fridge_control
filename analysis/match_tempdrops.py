@@ -1,13 +1,13 @@
 from pydfmux.analysis.analyze_GofT import *
 
-def match_temps_drops(temps=[], drop_dirs=[], mezzmods=[]):
+def match_temps_drops(date, temps=[], drop_dirs=[], mezzmods=[]):
     datafiles = {}
     for mm in mezzmods:
         datafiles[mm]={}
     for temp in temps:
         ix = temps.index(temp)
         for mm in mezzmods:
-            datafiles[mm][temps[ix]]='/home/spt3g/output/'+drop_dirs[ix]+'/data/IceBoard_0137.Mezz_'+mm[1]+'.ReadoutModule_'+mm[3]+'_OUTPUT.pkl'
+            datafiles[mm][temps[ix]]='/home/spt3g/output/'+str(date)+drop_dirs[ix]+'/data/IceBoard_0137.Mezz_'+mm[0]+'.ReadoutModule_'+mm[1]+'_OUTPUT.pkl'
     return datafiles
 
 def make_gparams(datafiles, rpars, mezzmods=[]):

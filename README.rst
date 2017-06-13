@@ -897,7 +897,132 @@ output directory.
 
 G(T) Analysis
 -------------
-Once you have taken 
+Once you have taken the G(T) data, you will want to make plots and histograms of
+the parameters (G, n, k, and Tc), as well as a histogram of saturation power at
+base temperature and plots of power vs. temperature for each bolometer. To make
+this at all possible, there are a couple of codes that are used to organize the
+data in a helpful way and make these plots.
+
+The first step is going to be getting the data you need out of the overbias_and_null
+and drop_bolos directories. There are several functions for this process in
+pydfmux/analysis/analyze_GofT.py, but that script requires some extra steps in order
+to appropriately match the data files to the temperatures. The necessary functions
+are used in anl_fridge_control/analysis/match_tempdrops.py. The first function,
+match_temps_drops, allows you to match a list or numpy array of temperatures with
+a list or numpy array of drop_bolos directories. The inputs are:
+
+- date: the date that you took the data (ex. 20170530)
+
+- temps: a list or numpy array of temperatures (such as is found in the temperature
+pickle)
+
+- drop_dirs: a list or numpy array of directory names
+
+- mezzmods: a list of mezzanines and modules, where the number of each is put together
+in a single string (Mezz 1 Mod 1 = '11', Mezz 1 Mod 2 = '12', and so on).
+
+This function returns a dictionary indexed by the mezzanine and module string. The
+dictionary matches each temperature to an output pickle file, which will be needed
+for the next step of the analysis.
+
+The next step, also a function in analysis/match_tempdrops.py, is make_gparams, a
+function which allows you to make a dictionary of parameters from the fit of the
+datapoints to the G(T) function (see pydfmux/analysis/analyze_GofT for the function's
+form). make_gparams takes three inputs:
+
+- datafiles: the dictionary output from match_temps_drops
+
+- rpars: a dictionary of parasitic resistances, which matches bolometer name to
+parasitic resistance. This can be found from the R(T) analysis, but you should be
+careful about the precise name of the bolometer (watch your slashes and underscores).
+
+- mezzmods: this is the same as in match_temps_drops
+
+The dictionary returned by this function matches each bolometer to fit parameters,
+fit errors, and a dictionary called PsatVtemp, which has arrays for both saturation
+power and temperature. The returned dictionary is indexed by the mezzanine/module
+string.
+
+The output dictionary from make_gparams is all you need to make a variety of plots
+that are important for showing the detector characteristics. Each plot can be made
+with a function from analysis/GofT_postanalysis.py. Those functions are outlined
+below.
+
+- make_param_dict: makes a dictionary of parameters k, tc, n, and G, as well as
+the saturation power at 300 mK and the frequency band of the detector, indexed
+by bolometer name
+
+  - Parameters
+
+    - gparams: the output dictionary of make_gparams
+
+- param_triangle: makes plots and histograms of all of the parameters, with
+frequency band differentiated by color
+
+  - Parameters
+
+    - params: the output dictionary of make_param_dict
+
+    - wafernumber: the integer number of the wafer you are testing
+
+- psat_hist: makes a histogram of the saturation power at 300 mK, with frequency
+band differentiated by color
+
+  - Parameters
+
+    - params: the output dictionary of make_param_dict
+
+    -wafernumber: the integer number of the wafer you are testing
+
+- psat_of_t: makes a fit of power based on the bolometer's parameters at a specific
+temperature. This function is called by others, and should generally not be used
+on its own
+
+- GofT_fitplots: makes plots of fit functions for each bolometer
+
+  - Parameters:
+
+    - mezzmod: a single string for the mezzanine/module you want to plot (ex. '12')
+
+    - gparams: the output of make_gparams
+
+    - params: the output of make_param_dict
+
+An example of using these codes to produce plots is shown below, although the
+directories and temperatures are not ones that were used in any real data-taking.
+
+.. code:: python
+
+  from anl_fridge_control.analysis.match_temps_drops import *
+  from anl_fridge_control.analysis.GofT_postanalysis import *
+
+  temps = [0.300, 0.400, 0.500, 0.600]
+
+  drop_dirs = ['20170530_195423_drop_bolos', '20170530_202320_drop_bolos', '20170530_205643_drop_bolos', '20170530_220137_drop_bolos']
+
+  mezzmods = ['14','23','24']
+
+  datafiles = match_temps_drops(20170530, temps=temps, drop_dirs=drop_dirs, mezzmods=mezzmods)
+
+  # using rpars from R(T) analysis
+  gparams = make_gparams(datafiles, rpars=rpar_dict, mezzmods=mezzmods)
+
+  params = make_param_dict(gparams)
+
+  param_triangle(params, 169)
+
+  # save the figure
+
+  psat_hist(params, 169)
+
+  # save the figure
+
+  GofT_fitplots('14', gparams, params)
+  # save the figure
+  GofT_fitplots('23', gparams, params)
+  # save the figure
+  GofT_fitplots('24', gparams, params)
+  # save the figure
 
 Magnetic Field Testing
 ----------------------
