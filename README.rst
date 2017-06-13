@@ -846,10 +846,58 @@ detectors that are evident from R(T). You will also need some of this informatio
 (particularly the parasitic resistances) for future reference (i.e. when looking
 at G(T)).
 
-G(T) Testing
-------------
+G(T) Measurement
+----------------
+A second test that is usually used in characerizing detectors involves dropping
+the bolometers into the transition at different temperatures. Using this measurement,
+we can look at the relationships between saturation power and temperature as well
+as mathematically find what the critical temperature should be. The steps for
+taking this measurement are:
 
+1. Overbias bolometers at 650 mK
 
+2. Lower the UC stage temperature to a desired temperature (usually below where
+you expect the critical temperature to be)
+
+3. Drop the bolometers into the transition
+
+4. Zero combs
+
+5. Raise the temperature back up to 650 mK
+
+6. Repeat this process until you have dropped bolometers into the transition at
+every desired temperature
+
+This process is obviously tedious and time-consuming, which is why the measure_GofT
+script is designed to run the entire process for you. measure_GofT can be found
+in the measurement directory of anl_fridge_control.
+
+The measure_GofT script is intended to be run only with a working PID heater. If
+this part of you system is not functional, then the program will not run properly.
+Also keep in mind that measure_GofT takes several hours to run, and can very easily
+be the only test that you are able to run in a day.
+
+The measure_GofT script starts out with a few user parameters that you should
+check before running the program. They are:
+
+- logfile: this is the path to the temperature log file
+
+- setpoints: this is the array of temperatures at which you will be dropping bolometers
+into the transition. The script uses a numpy linspace to set up this array, so the
+first number should be the lowest temperature, the second number the highest temperature,
+and the third number the number of points you want between these extrema (inclusive).
+
+- wafertemps_filename: this is the full path to the pickle file that will be written
+to record the temperatures at which the bolometers are put in the transition. You
+will need to change this every time you run the script.
+
+Once you have run the program, you will have a pickle file for the temperatures,
+as well as several overbias_and_null and drop_bolos directories within the day's
+output directory.
+
+G(T) Analysis
+-------------
+Once you have taken 
 
 Magnetic Field Testing
 ----------------------
