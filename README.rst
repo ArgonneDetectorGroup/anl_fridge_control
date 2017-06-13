@@ -731,18 +731,52 @@ This script is measure_RofT.py, and is contained in the measurement directory.
 
 The measure_RofT script allows you to start the R(T) measurement protocol from
 any temperature below 650 mK. Before you begin, you should change the overbias
-amplitude in northern_tuning_params.yaml to 0.0002. Then, you should be able to
-start running the script. The script first turns off switches, in case they were
-on, then heats the stage up to 650 mK using both the pumps and the PID heater,
-overbiases the bolometers, and starts running ledgerman. It then steps down the
-temperature until it reaches 400 mK, waits for the UC Stage to reach 400 mK, then
-saves the start and end times for the downward sweep and terminates ledgerman.
-It then restarts ledgerman with a new file name, and raises the temperature slowly
-until it reaches 650 mK, waits for the UC Stage to reach this temperature, records
-the start and end times for this sweep, and terminates ledgerman again.
+amplitude in northern_tuning_params.yaml to 0.0002. You should also check the
+user parameters at the beginning of measure_RofT before you begin taking data.
+These parameters are listed below.
 
-!!four files
-!!settings
+- logfile: the temperature log file
+
+- hwm_file: the full path to the hardware map yaml file (this is needed for ledgerman)
+
+- ledgerman_path: the full path to ledgerman.py (you should not need to change this)
+
+- R_down_path: the full path to the ledgerman file that you will be outputting for
+the downward sweep. This must be changed every time you run this program
+
+- down_times: the full path to the pickle file of times for the downward sweep.
+This must be changed every time you run this program
+
+- R_up_path: the full path to the ledgerman file that you will be outputting for
+the upward sweep. This must be changed every time you run this program
+
+- up_times: the full path to the pickle file of times for the upward sweep. This
+must be changed every time you run this program
+
+- wafer_high_temp: the high temperature that you want to heat the stage to and
+overbias at, in K (usually 0.650)
+
+- wafer_low_temp: the low temperature that you want to cool the stage to, in K
+(usually 0.400 or 0.350)
+
+- K_per_sec: the rate at which you want to change the temperature that is set, in
+K per second (1e-4 is usually a good setting)
+
+- update_time: the time that the code will wait before changing the temperature on
+the heater, in seconds
+
+Then, you should be able to start running the script. The script first turns off
+switches, in case they were on, then heats the stage up to 650 mK using both the
+pumps and the PID heater, overbiases the bolometers, and starts running ledgerman.
+It then steps down the temperature until it reaches 400 mK, waits for the UC Stage
+to reach 400 mK, then saves the start and end times for the downward sweep and
+terminates ledgerman. It then restarts ledgerman with a new file name, and raises
+the temperature slowly until it reaches 650 mK, waits for the UC Stage to reach
+this temperature, records the start and end times for this sweep, and terminates
+ledgerman again. At the end of the script, you will have four files outputted: one
+ledgerman file for the downward sweep, one ledgerman file for the upward sweep,
+one pickle file for the start and end times of the downward sweep, and one pickle
+file for the start and end times of the upward sweep.
 
 In addition to measure_RofT, another similar script, take_rt_mini.py, can also
 be used for this measurement. take_rt_mini is useful for R(T) measurements that
@@ -823,8 +857,6 @@ find_r_parasitic requires inputs of data_r, ds_temps, a range of temperature val
 to look at, and the data dictionary. It returns the same dictionary, this time
 adding a parasitic resistance for each bolometer.
 
-!!code snippets
-
 Of course, this program is not perfect in its ability to catch bolometers that
 do not behave as they should. The function plot_each_bolo allows you to make a
 plot of the resistance data for each bolometer individually, and also plots with
@@ -845,6 +877,72 @@ of the information you needed to find to describe the characteristics of the
 detectors that are evident from R(T). You will also need some of this information
 (particularly the parasitic resistances) for future reference (i.e. when looking
 at G(T)).
+
+An example of the usage of this code is shown below, although the data files are
+not real ones.
+
+.. code:: python
+
+  cd output/20170603
+
+  # before importing, set flex_to_mezzmods to the correct dictionary
+
+  from anl_fridge_control.analysis.rt_data_reader import *
+
+  # read in and convert the data
+
+  overbias_dir = '20170603_182404_overbias_and_null'
+
+  cfp_dict = make_cfp_dict(overbias_dir)
+
+  starttime, endtime = load_times('down_times.pkl')
+
+  temp_vals, time_vals = read_temps('/home/spt3g/he10_logs/log03302017b_read.h5', starttime, endtime)
+
+  data_i, data_q, time_sec = read_netcdf_fast('down1.nc', cfp_dict)
+
+  tempfit = model_temps(temp_vals, time_vals)
+
+  ds_temps, ds_data = downsample_data(time_sec, data_i, data_q, tempfit, 'quadrature')
+
+  data_r = convert_i2r(ds_data, 0137, overbias_dir)
+
+  pickle_data(ds_temps, data_r, 'rt_down_data.pkl')
+
+  # pull the data from the pickle file
+  data = pickle.load(open('rt_down_data.pkl'))
+
+  # make an overplot of all of the channels
+  for key in data['data']:
+    plt.plot(data['temps'], data['data'][key])
+    plt.show()
+
+  # start finding important parameters
+  data_dict = make_data_dict(data['data'])
+
+  data_dict = find_r_total(data['data'], data['temps'], 0.570, data_dict)
+
+  data_dict = find_r_parasitic(data['data'], data['temps'], (0.450, 0.500), data_dict)
+
+  plot_each_boo(data['temps'], data['data'], data_dict)
+
+  # look at plots and find bad bolos
+
+  bad_bolos.append('2017.2.34.1557')
+
+  data_dict = find_tc(data['data'], data['temps'], (0.545, 0.565), data_dict)
+
+  tc_plots(data['temps'], data['data'], data_dict)
+
+  # set aside a dictionary of parasitic resistance for G(T)
+  rpar_dict = {}
+  for key in data_dict:
+    rpar_dict[key]=data_dict[key]['rpar']
+
+  f=open('rpar_dict.pkl','w')
+  pickle.dump(rpar_dict, f)
+  f.close()
+
 
 G(T) Measurement
 ----------------
