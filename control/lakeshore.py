@@ -48,6 +48,9 @@ class TempControl:
     def set_PID_params(self, output, P, I, D):
         self.connex.write('PID %d,%f,%f,%f\r\n'%(output,P,I,D))
 
+    def get_HTR_output(self):
+        self.connex.write('HTR?\r\n')
+        return self.connex.readline()
     def config_output(self, output, mode, input):
         if output in [1,2] and mode in range(6) and input in range(5):
 		self.connex.write('OUTMODE %d,%d,%d,0\r\n'%(output, mode, input))

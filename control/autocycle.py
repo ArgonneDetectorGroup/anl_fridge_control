@@ -3,7 +3,7 @@ import pydfmux
 import os,time
 
 import sys
-sys.path.append('/home/spt3g/')
+#sys.path.append('/home/spt3g/')
 import he10_fridge_control.control.gettemp as gt
 from anl_fridge_control.basic_functions import finish_cycle
 from anl_fridge_control.basic_functions import zero_everything
@@ -17,23 +17,24 @@ def autocycle():
 	This is a function to run a fridge cycle.  Note that it takes 6+ hours to run.
 	'''
 	try:
-		logfile=raw_input('What is the logfile?  /home/spt3g/')
-		logfile=str(logfile)
+		loggy=raw_input('What is the logfile?  /home/spt3g/he10_logs/')
+		logfile=os.path.join('/home/spt3g/he10_logs/', str(loggy))
 
-		hwm_dir=raw_input('What is the full path to the hardware map yml?  ')
-		hwm_dir=str(hwm_dir)
+                '''
+		hwm_d=raw_input('What is the full path to the hardware map yml?  /home/spt3g/hardware_maps/')
+		hwm_dir=os.path.join('/home/spt3g/hardware_maps/' , str(hwm_d))
 
-		hwm=pydfmux.load_session(open(hwm_dir))['hardware_map']
+		print hwm_dir
+		hwm=pydfmux.load_session(open(hwm_dir, 'r'))['hardware_map']
 		ds=hwm.query(pydfmux.Dfmux)
-		d=ds[0]
-
+		
 		print "Turning off mezzanines."
 		ds.set_mezzanine_power(False,1)
 		ds.set_mezzanine_power(False,2)
 		
 		raw_input('Please press enter if the mezzanines are actually off (for testing).')
 		print "Mezzanines off, ready to go."
-
+                '''
 		sc.He4p.remote_set()
 		sc.He3ICp.remote_set()
 		sc.He3UCp.remote_set()
@@ -134,6 +135,7 @@ def autocycle():
 	except:
 		print 'Crashed!'
 		print datetime.datetime.now()
+		print 'Zeroing everything for safety.'
 		zero_everything()
 
 if __name__=='__main__':

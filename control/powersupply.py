@@ -88,7 +88,7 @@ class PowerSupply(object):
 
 	def driver_parser(self, driverfile):
 		out = {}
-		with open('/home/spt3g/'+str(driverfile),'r') as f:
+		with open('/home/spt3g/anl_fridge_control/control/'+str(driverfile),'r') as f:
 			for line in f:
 				listedline = line.strip().decode('unicode-escape').split('=')
 				if len(listedline)>1:

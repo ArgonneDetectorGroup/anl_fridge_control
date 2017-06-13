@@ -23,8 +23,8 @@ def run():
 	logfile=str(logfile)
 
 	# wait for the main plate to cool down enough to start a cycle
-	print 'Waiting for Main Plate to be below 3.5 K...'
-	while float(gt.gettemp(logfile, 'mainplate'))>3.5:
+	print 'Waiting for Main Plate to be below 10 K...'
+	while float(gt.gettemp(logfile, 'mainplate'))>10:
 		time.sleep(600)
 
 	# wait for switches to cool enough to not blow the cycle you are about to start
@@ -49,7 +49,7 @@ def run():
 	sc.He3UCp.set_voltage(he3ucv)
 
 	print 'Waiting for pumps to heat (this will take a long time)'
-
+        print datetime.datetime.now()
 	try:
 		# heat up the pumps at a high voltage to help accelerate the process
 		while float(gt.gettemp(logfile, 'He4 IC Pump'))<30.00:
@@ -68,7 +68,11 @@ def run():
 		sc.He3ICp.set_voltage(he3icv)
 
 		# wait to help the pump temperatures keep rising to where we want them
-		time.sleep(60*60)
+		print 'Waiting one hour for pumps to heat'
+                print datetime.datetime.now()
+                time.sleep(60*60)
+                
+                
 
 		# set stabilizing voltages
 		he4v=3.00
@@ -79,6 +83,8 @@ def run():
 		sc.He3UCp.set_voltage(he3ucv)
 
 		# wait 2 hours for temperatures to hopefully settle
+                print 'Setting maintenance voltages, waiting 2 hours'
+                print datetime.datetime.now()
 		time.sleep(2*60*60)
 
 		# wait for UC Head and IC Head to get cold

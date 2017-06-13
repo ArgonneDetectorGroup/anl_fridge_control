@@ -7,8 +7,6 @@ from netCDF4 import Dataset
 from pydfmux.core.utils.transferfunctions import convert_TF
 
 
-#def make_ob_dict(overbias_dir):
-
 flex_to_mezzmods = {'0137':{'w169':'21', 'w169_lc425a':'22'}, '0135':{'w169_lcnbberka':'24', 'w169_lcnbberkb':'23'}}
 
 def make_cfp_dict(overbias_dir):
@@ -30,9 +28,10 @@ def make_cfp_dict(overbias_dir):
                 bolo = ob['subtargets'][ix]['bolometer']
                 cfp = convert_TF(15, 'nuller', unit='RAW', frequency=freq)
                 cfp_dict[bolo] = cfp
+    for key in cfp_dict.keys():
+        newkey=key.replace('/','_')
+        cfp_dict[newkey]=cfp_dict.pop(key)
     return cfp_dict
-
-#cfp = convert_TF(15, 'carrier',unit='RAW')
 
 def load_times(time_pkl):
     '''
@@ -58,15 +57,15 @@ def read_temps(tempfile, starttime, endtime, sensor='UC Head'):
     endtime: Output of load_times()
     sensor: The correct item in the logfile (usually UC Head)
     '''
-	dataread = tables.open_file(tempfile, 'r')
-	datatable = dataread.get_node('/data/' + sensor.replace(' ', '_'))
+    dataread = tables.open_file(tempfile, 'r')
+    datatable = dataread.get_node('/data/' + sensor.replace(' ', '_'))
 
-	temp_vals = [row[sensor] for row in datatable.iterrows() if row['time'] > starttime-1 and row['time'] < endtime+1]
-	time_vals = [row['time'] for row in datatable.iterrows() if row['time'] > starttime-1 and row['time'] < endtime+1]
+    temp_vals = [row[sensor] for row in datatable.iterrows() if row['time'] > starttime-1 and row['time'] < endtime+1]
+    time_vals = [row['time'] for row in datatable.iterrows() if row['time'] > starttime-1 and row['time'] < endtime+1]
 
-	dataread.close()
+    dataread.close()
 
-	return temp_vals, time_vals
+    return temp_vals, time_vals
 
 
 def read_netcdf_fast(ledgerman_filename,cfp_dict=[]):
@@ -90,8 +89,12 @@ def read_netcdf_fast(ledgerman_filename,cfp_dict=[]):
         i_comp=data.variables[var+'_I'][ixs]
         q_comp=data.variables[var+'_Q'][ixs]
 
-        data_i[var]=i_comp*cfp_dict[str(var).replace('_','/')]#cal_factor_pa
-        data_q[var]=q_comp*cfp_dict[str(var).replace('_','/')]#cal_factor_pa
+        if str(var) in cfp_dict.keys():
+            data_i[var]=i_comp*cfp_dict[str(var)]#cal_factor_pa
+            data_q[var]=q_comp*cfp_dict[str(var)]#cal_factor_pa
+	elif str(var).replace('_','/') in cfp_dict.keys():
+            data_i[var]=i_comp*cfp_dict[str(var).replace('_','/')]#cal_factor_pa
+            data_q[var]=q_comp*cfp_dict[str(var).replace('_','/')]#cal_factor_pa
 
     return data_i, data_q, time_sec
 
@@ -107,7 +110,7 @@ def model_temps(temp_vals, time_vals):
     tempfit = scipy.interpolate.interp1d(new_time_vals, temp_vals)
     return tempfit
 
-def downsample_data(time_sec, data_i, data_q, tempfit):
+def downsample_data(time_sec, data_i, data_q, tempfit, add_type):
     '''
     Cuts the data down to help with transfer, and adds the i and q components in quadrature.
 
@@ -115,20 +118,26 @@ def downsample_data(time_sec, data_i, data_q, tempfit):
     data_i: Output of read_netcdf_fast()
     data_q: Output of read_netcdf_fast()
     tempfit: Output of model_temps()
+    add_type: choose from 'quadrature', 'I', 'Q'
     '''
-    interp_temps = tempfit(time_sec[0:-3])
+    interp_temps = tempfit(time_sec[0:-2])
 
     ixs = []
     ix0 = 0
-    while ix0 < len(time_sec):
+    while ix0 < len(time_sec)-1:
         ixs.append(ix0)
-        ix0 += 2
+        ix0 += 1
     ixs.remove(ixs[-1])
     ds_data = dict()
     for key in data_i.keys():
         ds_data[key] = []
         for ix in ixs:
-            ds_data[key].append(math.sqrt(data_i[key][ix]**2+data_q[key][ix]**2))
+            if add_type=='quadrature':
+                ds_data[key].append(math.sqrt(data_i[key][ix]**2+data_q[key][ix]**2))
+            elif add_type=='I':
+                ds_data[key].append(data_i[key][ix])
+            elif add_type=='Q':
+                ds_data[key].append(data_q[key][ix])
     ds_temps = []
     for ix in ixs:
         ds_temps.append(interp_temps[ix])
