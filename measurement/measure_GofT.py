@@ -9,36 +9,30 @@
 # Adam Anderson
 # adama@fnal.gov
 # 27 April 2016
+#
+# Modified for ANL by Lauren Saunders
+# ljsaunders@uchicago.edu
+# 13 June 2017
+
 
 import pydfmux
-#from anl_fridge_control.serial_connections import *
 import os,time
 import datetime
 import numpy as np
-from matplotlib.pylab import switch_backend
 import cPickle as pickle
-from pydfmux.core.utils.conv_functs import build_hwm_query
+import pydfmux.spt3g.northern_tuning_script as nts
 import anl_fridge_control.serial_connections as sc
 
 import sys
 sys.path.append('/home/spt3g/')
 import he10_fridge_control.control.gettemp as gt
 
+###### user parameters ######
 logfile = '/home/spt3g/he10_logs/20170302_again_read.h5'
-hwm_dir='/home/spt3g/hardware_maps/hwm_anl_20170306_W169_and_Rboards/hwm_anl_proto.yml'
+setpoints = np.linspace(0.300, 0.600, 12)
+wafertemps_filename = '/home/spt3g/output/20170406/GofT_temps.pkl'
 
-hwm=pydfmux.load_session(open(hwm_dir))['hardware_map']
-ds=hwm.query(pydfmux.Dfmux)
-sqcbs=hwm.query(pydfmux.SQUIDController)
-squids=hwm.query(pydfmux.SQUID)
-bolos = hwm.query(pydfmux.Bolometer)
-rm=hwm.query(pydfmux.ReadoutModule)
-d=ds[0]
-
-
-# cryostat-specific settings
-setpoints = np.linspace(0.550, 0.600, 2)
-
+###### THIS IS THE PART WHERE IT DOES THINGS ########
 print 'Starting G(T)'
 
 sc.He3ICp.set_voltage(0)
@@ -48,25 +42,21 @@ sc.He3UCs.set_voltage(0)
 sc.ChaseLS.set_PID_temp(1, 0.500)
 time.sleep(1)
 sc.ChaseLS.set_heater_range(2)
-while float(gt.gettemp(logfile, 'UC Head'))<0.450:
+while float(gt.gettemp(logfile, 'UC Stage'))<0.450:
     time.sleep(10)
 sc.ChaseLS.set_PID_temp(1,0.650)
 time.sleep(1)
 sc.ChaseLS.set_heater_range(3)
 time.sleep(1)
-while int(gt.gettemp(logfile, 'UC Head')*1e3)<650:
+while float(gt.gettemp(logfile, 'UC Stage'))<0.650:
     time.sleep(20)
 time.sleep(300)
 
-#if 'good_bolos' in locals():
-#	overbias_results = good_bolos.overbias_and_null(cold_overbias=False, serialize=True,carrier_amplitude=0.0135, scale_by_frequency=True)
-#else:
-#	overbias_results = bolos.overbias_and_null(cold_overbias=False, serialize=True,carrier_amplitude=0.0135, scale_by_frequency=True)
+print 'Zeroing combs'
+nts.run_do_zero_combs()
 
 print 'Overbiasing'
-ds.clear_all()
-ds.clear_dan()
-bolos.overbias_and_null(cold_overbias=False, serialize=True, carrier_amplitude=0.015, scale_by_frequency=True)
+nts.run_overbias_bolos()
 
 waferstarttemps = np.zeros(len(setpoints))
 measurestarttimes = np.zeros(len(setpoints))
@@ -88,7 +78,7 @@ for jtemp in range(len(setpoints)):
     time.sleep(1)
     sc.He3UCs.set_voltage(3.00)
     sc.He3ICs.set_voltage(4.00)
-    while float(gt.gettemp(logfile, 'UC Head'))>(setpoints[jtemp]+0.05):
+    while float(gt.gettemp(logfile, 'UC Stage'))>(setpoints[jtemp]+0.1):
 	time.sleep(60)
     sc.He3UCs.set_voltage(0.00)
     sc.He3ICs.set_voltage(0.00)
@@ -100,7 +90,7 @@ for jtemp in range(len(setpoints)):
     nAttempts = 0
     while np.abs(recenttemps[-1] - recenttemps[-4]) > 0.001 and nAttempts < 45:
         time.sleep(20)
-        recenttemps.append(int(float(gt.gettemp(logfile, 'UC Head')*1e3)))
+        recenttemps.append((float(gt.gettemp(logfile, 'UC Stage')))
         nAttempts += 1
         print('{:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()))
         print('Wafer holder drifted %f mK.' % 1e3*np.abs(recenttemps[-1] - recenttemps[-4]))
@@ -108,7 +98,7 @@ for jtemp in range(len(setpoints)):
         sc.ChaseLS.set_heater_range(0)
         sys.exit('UC Head failed to stabilize! Zeroed heater and quitting now.')
 
-    waferstarttemps[jtemp] = gt.gettemp(logfile, 'UC Head')
+    waferstarttemps[jtemp] = gt.gettemp(logfile, 'UC Stage')
     measurestarttimes[jtemp] = time.time()
     print waferstarttemps
 
@@ -118,41 +108,36 @@ for jtemp in range(len(setpoints)):
     noise_results_before = alive.dump_info()
 
     drop_bolos_results =  bolos.drop_bolos(monotonic=True,A_STEP_SIZE=0.000015,TOLERANCE=0.05)
-    waferstoptemps[jtemp] = gt.gettemp(logfile, 'UC Head')
+    waferstoptemps[jtemp] = gt.gettemp(logfile, 'UC Stage')
     measurestoptimes[jtemp] = time.time()
     print waferstoptemps
 
     # save the data to a pickle file, rewriting after each acquisition
-    f = file('/home/spt3g/output/20170321/G_temp_data_20170321.pkl', 'w')
+    f = file(wafertemps_filename, 'w')
     pickle.dump([waferstarttemps, measurestarttimes, waferstoptemps, measurestoptimes], f)
     f.close()
 
     alive = bolos.find_alive_bolos()
     noise_results_after = alive.dump_info()
 
+    nts.run_do_zero_combs()
+
     print 'Raising temperature for overbias.'
     sc.ChaseLS.set_PID_temp(1, 0.500)
     time.sleep(1)
     sc.ChaseLS.set_heater_range(2)
-    while float(gt.gettemp(logfile, 'UC Head'))<0.480:
+    while float(gt.gettemp(logfile, 'UC Stage'))<0.480:
         time.sleep(20)
 
     sc.ChaseLS.set_PID_temp(1,0.650)
     time.sleep(1)
     sc.ChaseLS.set_heater_range(3)
     time.sleep(1)
-    while float(gt.gettemp(logfile, 'UC Head'))<0.640:
+    while float(gt.gettemp(logfile, 'UC Stage'))<0.640:
 	time.sleep(10)
-    time.sleep(600)
+    time.sleep(300)
 
-    ds.clear_all()
-    ds.clear_dan()
-    bolos.overbias_and_null(cold_overbias=False, serialize=True,carrier_amplitude=0.015, scale_by_frequency=True)
-
-#    if 'good_bolos' in locals():
-#    	overbias_results = good_bolos.overbias_and_null(cold_overbias=False, serialize=True,carrier_amplitude=0.0135, scale_by_frequency=True)
-#    else:
-#    	overbias_results = bolos.overbias_and_null(cold_overbias=False, serialize=True,carrier_amplitude=0.0135, scale_by_frequency=True)
+    nts.run_overbias_bolos()
 
 
 sc.ChaseLS.set_heater_range(0)
