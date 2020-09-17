@@ -13,7 +13,7 @@ import cPickle as pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
-
+import pdb
 
 def find_G_params(data_files, Rp=[], plot_path=None, T_range=[0.2, 0.6]):
     '''
@@ -40,6 +40,7 @@ def find_G_params(data_files, Rp=[], plot_path=None, T_range=[0.2, 0.6]):
     fit_errs : python dictionary
         {channel name -> fit errors}
     '''
+
     PsatVtemp = dict()
     # loop over temperatures and data to find Psats at each point
     for temp in data_files:
@@ -52,13 +53,20 @@ def find_G_params(data_files, Rp=[], plot_path=None, T_range=[0.2, 0.6]):
 #        else:
 #            Zp = Rp
 
-        Psat_at_T = analyze_IV.find_Psat(data_files[temp], R_threshold='pturn', Zp=Rp, plot_dir=None)
+        Psat_at_T = analyze_IV.find_Psat(data_files[temp], Zp_physical_name=False, R_threshold='pturn', Zp=Rp, plot_dir=None)
         for channum in Psat_at_T: #IV_data['subtargets']:
             boloname = IV_data['subtargets'][channum]['bolometer']
+#            pdb.set_trace()
+
             if boloname not in PsatVtemp:
                 PsatVtemp[boloname] = dict()
                 PsatVtemp[boloname]['T'] = np.array(data_files.keys())
                 PsatVtemp[boloname]['Psat'] = np.zeros(len(PsatVtemp[boloname]['T']))
+#                PsatVtemp[boloname]['name'] = IV_data['subtargets'][channum]['physical_name']
+
+                PsatVtemp[boloname]['name'] = IV_data['subtargets'][channum]['bolometer'].split('/')[1]
+                
+            
             PsatVtemp[boloname]['Psat'][temp==PsatVtemp[boloname]['T']] = Psat_at_T[channum]
 
     # now do the fitting of Psat(T)
@@ -69,7 +77,8 @@ def find_G_params(data_files, Rp=[], plot_path=None, T_range=[0.2, 0.6]):
         if type(fitp) == np.ndarray:
             fit_params[boloname] = fitp
             fit_errs[boloname] = [np.sqrt(cov[ind][ind]) for ind in range(cov.shape[0])]
-
+            
+            
     # make plots if desired
     # (don't make empty plots)
     if plot_path != None and len(PsatVtemp) > 0:
@@ -141,7 +150,7 @@ def PsatofT(Tb, k, Tc, n):
     return power
 
 
-def plot_PsatofT(T, Psat, fit_params, fit_errs, T_range=[0.2, 0.6]):
+def plot_PsatofT(Psat, fit_params, fit_errs, T_range=[0.2, 0.6]):
     '''
     Make plots of the results of the Psat(T) analysis.
 

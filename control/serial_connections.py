@@ -1,5 +1,5 @@
-import anl_fridge_control.powersupply as PS
-import anl_fridge_control.lakeshore as LS
+import anl_fridge_control.control.powersupply as PS
+import anl_fridge_control.control.lakeshore as LS
 
 # power supplies
 He4p=PS.PowerSupply('He4p.txt')
@@ -14,3 +14,10 @@ channel_of_interest = 'A'
 PID_channel = 'A'
 ChaseLS=LS.TempControl('/dev/ttyr18', ['A','B','C1','C2'])
 ChaseLS.config_output(1,1,ChaseLS.channel_names.index(PID_channel)+1)
+
+He4p.remote_set()
+He4s.remote_set()
+He3ICp.remote_set()
+He3ICs.remote_set()
+He3UCp.remote_set()
+He3UCs.remote_set()
