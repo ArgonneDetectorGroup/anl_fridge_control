@@ -1,11 +1,15 @@
 ===============
 README
 ===============
-Lauren Saunders
-ljsaunders@uchicago.edu
+
+For information contact:
+A. Bender
+abender@nal.gov
 
 Original: February 20, 2017
-Revised: June 8, 2017
+Lauren Saunders
+ljsaunders@uchicago.edu
+Last Revised: Sept 17,2020
 
 This repository contains various Python scripts and tools for running the He10
 cryostat at Argonne National Laboratory.
