@@ -20,7 +20,7 @@ The control codes contained in this repository are intended for use only with th
 He10 system; it is not designed to be used with the ADR cryostat housed in Building
 360, although certain parts of the codes are intended to be universally applicable
 to certain types of hardware (these cases are noted in the following sections).
-The measurement and analysis codes are inteded for use with the SPT-3G detectors
+The measurement and analysis codes are intended for use with the SPT-3G detectors
 and readout electronics, and work with algorithms stored in other repositories,
 such as pydfmux.
 
@@ -98,13 +98,16 @@ then begin pumping down to vacuum. Plug the power cord into the pressure gauge,
 and connect the hose of the vacuum pump to the valve at the top of the cryostat.
 You should begin with the valve closed, and just pump down the hose with the
 roughing pump. Once that is done, you can slowly open the valve, keeping the
-pressure reading on the pump around 100 mTorr. You should not open the valve quickly
+pressure reading on the pump around 100 mBar. You should not open the valve quickly
 or begin pumping with the valve open because this may cause damage to the wafer.
 Eventually, the valve will be open completely, which will be evident by a lack of
 quick change in the pressure reading on the pump when you turn the valve.
 
-After you have pumped down to _? mTorr, you can turn on the _? pump and allow the
-pressure to come down to 1e-4 mTorr on the cryostat's pressure gauge. Once you
+After you have pumped down to 5  Torr (as read out on gauge on the cryostat)
+, you can turn on the turbo pump and allow the
+pressure to come down to 5e-4 mTorr on the cryostat's pressure gauge. At this point
+you can turn on the pulse tube.  Leave the pump on the cryostat until everything is
+below 77K.  Once you
 are done pumping down, you can close the cryostat's valve and turn off the vacuum
 pumps, allowing the fans to slowly spin down. Once this is done, you can remove
 the vacuum pump. To turn on the pulse tube, go into the inner hallway and turn
@@ -117,6 +120,12 @@ fridge logger, see the Fridge Logging section of this file. Once the main plate
 temperature reading is below 3.5 K, you can start the first_cycle script, which
 will cool the stages down to base temperature (see the Cryostat Control section
 for more information).
+
+The cooldown can be sped up by creating a thermal link between the ultracold stages
+and 4K using the pumps in the He10 fridge.  You can do this manually by setting the pump
+voltages and regulating the temperatures, but there is also a script.
+See; anl_fridge_control/control/cool_down_script.py
+
 
 Remote Sessions
 ===============
@@ -147,6 +156,57 @@ You can also use screen or a non-detachable terminal to run tests, but should be
 sure that if anyone else might be running something in the cryostat remotely, they
 know not to run anything simultaneously with you.
 
+MOXA Interface
+==============
+
+When the kernel is updated, you must rebuild the driver for the moxa.  This can be accomplished from the home directory with:
+
+sudo /home/spt3g/moxa/kernel3.x/mxinst m64
+
+Y to rebuild, N to secure mode.
+
+Once complete, you should see new devices appear in /dev/ttyrX.....
+The moxa ip address is 10.10.10.2  (local network).
+
+To test communications once the driver is rebuilt, open ipython3 and try:
+import serial
+interface_address='/dev/ttyr18'
+serial_interfaces=serial.Serial(interface_address, 9600, serial.SEVENBITS, serial.PARITY_ODD, serial.STOPBITS_ONE)
+serial_interfaces.write(('*IDN? \r\n').encode())
+serial_interfaces.readline().decode()
+
+You should see the following printed to screen:
+'LSCI,MODEL340,342582,061'
+
+LAKESHORE 350 Interface
+======================
+The Lakeshore 350 box uses ethernet to connect.  Plug one end of the cable into 'ethernet' interface on back of lakeshore.  Other end goes into ethernet switch on top of computer desk.
+
+IP address is 10.10.10.217
+
+Verify connectivity : ping 10.10.10.217
+
+TCP socket port is 7777
+
+import socket
+tcp_interface=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+tcp_interface.connect(('10.10.10.217',7777))
+tcp_interface.sendto('*IDN? \r\n',('10.10.10.217',7777))
+data=tcp_interface.recvfrom(1024)
+print data
+
+output should read...
+('LSCI,MODEL350,LSA23B2/LSA23CI,1.5\r\n', None)
+
+
+Critical commands:
+tcp_interface.sendto('KRDG? 0\r\n',('10.10.10.217',7777))
+data=tcp_interface.recvfrom(2048)
+
+First setup the inputs
+Then add the calibration curves
+
+
 Fridge Logging
 ==============
 The fridge_logger_anl.py code
@@ -159,11 +219,18 @@ The fridge logger, as well as the web server that services it, are usually run i
 detachable sessions. To start the logger, attach to your detachable session
 (screen or tmux). Before you begin the logger, make sure that any computer
 that might be attached your session has a connection with X windows available
-(either ssh -X, or from the desktop in the lab). Then, in the terminal, type
+(either ssh -X, or from the desktop in the lab). Then, in the terminal, type (for python3)
 
 .. code
 
-  python /home/spt3g/he10_fridge_control/logger/fridge_logger_anl.py
+    python /home/spt3g/he10_fridge_control/logger/fridge_logger_anl.py  #python3
+    
+if for some reason you really want to use python2, do this instead:
+
+.. code
+
+    python2 /home/spt3g/he10_fridge_control/logger/fridge_logger_anl.py   #python2 only
+  
 
 You will then be prompted for a filename, which should be inputted as
 
@@ -173,13 +240,19 @@ You will then be prompted for a filename, which should be inputted as
 
 Once you have started the logger, you can create the webserver so that you can
 monitor the temperatures. To do so, open another detachable session (screen or
-tmux) and type in the terminal
+tmux) and type in the terminal (for python3)
 
 .. code
 
-  cd /home/spt3g/he10_fridge_control/website/
+    cd /home/spt3g/he10_fridge_control/website/ 
+    python -m http.server 8100
+    
+if for some reason you have your heart set on using python2, use this:
 
-  python -m SimpleHTTPServer 8100
+.. code
+
+   cd /home/spt3g/he10_fridge_control/website/
+   python2 -m SimpleHTTPServer 8100
 
 The fridge logger will now publish its read information to a local website, which
 provides the most current measurements (a table that refreshes every few seconds)
@@ -566,6 +639,12 @@ heater power setting to 0. After the cycle runs, it will return the stages to
 base temperature, and the switches will be turned on (He4 switch to 4.00 V,
 He3 IC switch to 4.00 V, and He3 UC switch to 3.00 V).
 
+Addendum (2017-07-17):  The fridge cycle is now automtically run via cronjob
+every night at 10pm.  At the command line,use
+crontab -l    to view
+crontab -e    to edit.
+
+
 First cycle
 -----------
 While you will normally use autocycle.py to run a cycle, the first cycle of
@@ -905,7 +984,7 @@ not real ones.
 
   ds_temps, ds_data = downsample_data(time_sec, data_i, data_q, tempfit, 'quadrature')
 
-  data_r = convert_i2r(ds_data, 0137, overbias_dir)
+  data_r = convert_i2r(ds_data, '0137', overbias_dir)
 
   pickle_data(ds_temps, data_r, 'rt_down_data.pkl')
 
@@ -1091,11 +1170,15 @@ directories and temperatures are not ones that were used in any real data-taking
 
 .. code:: python
 
-  from anl_fridge_control.analysis.match_temps_drops import *
+  from anl_fridge_control.analysis.match_tempdrops import *
   from anl_fridge_control.analysis.GofT_postanalysis import *
 
   temps = [0.300, 0.400, 0.500, 0.600]
-
+	  
+  temps=np.arange(0.25,0.525,0.025)
+	  temps.sort()
+	  temps=temps.tolist()
+	  
   drop_dirs = ['20170530_195423_drop_bolos', '20170530_202320_drop_bolos', '20170530_205643_drop_bolos', '20170530_220137_drop_bolos']
 
   mezzmods = ['14','23','24']
@@ -1103,7 +1186,7 @@ directories and temperatures are not ones that were used in any real data-taking
   datafiles = match_temps_drops(20170530, temps=temps, drop_dirs=drop_dirs, mezzmods=mezzmods)
 
   # using rpars from R(T) analysis
-  gparams = make_gparams(datafiles, rpars=rpar_dict, mezzmods=mezzmods)
+   gparams = make_gparams(datafiles, rpars=rpar_dict, mezzmods=mezzmods)
 
   params = make_param_dict(gparams)
 
@@ -1135,7 +1218,7 @@ supply to generate a current in the coil(s), and any electronics equipment that
 might be necessary to safely connect the power supply and coils. Finally, you will
 need a power resistor, which normally resides in the electronics drawer in the lab.
 To hang your coil(s) close to the cryostat, it is usually easiest to use either
-velcro or duct tape.
+velcro.
 
 !! warnings
 
