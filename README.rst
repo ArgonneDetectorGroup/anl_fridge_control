@@ -9,7 +9,7 @@ abender@nal.gov
 Original: February 20, 2017
 Lauren Saunders
 ljsaunders@uchicago.edu
-Last Revised: Sept 17,2020
+Last Revised: July 26 2024
 
 This repository contains various Python scripts and tools for running the He10
 cryostat at Argonne National Laboratory.
@@ -227,7 +227,10 @@ that might be attached your session has a connection with X windows available
 
 .. code
 
-    python /home/spt3g/he10_fridge_control/logger/fridge_logger_anl.py  #python3
+   python /home/spt3g/anl_fridge_control/logger/fridge_logger.py #python 3
+
+   #moved package location 07/2024
+   #python /home/spt3g/he10_fridge_control/logger/fridge_logger_anl.py  #python3
     
 if for some reason you really want to use python2, do this instead:
 
@@ -240,7 +243,7 @@ You will then be prompted for a filename, which should be inputted as
 
 .. code
 
-  /home/spt3g/he10_logs/filename.h5
+   /home/spt3g/he10_logs/filename.h5
 
 Once you have started the logger, you can create the webserver so that you can
 monitor the temperatures. To do so, open another detachable session (screen or
@@ -248,8 +251,12 @@ tmux) and type in the terminal (for python3)
 
 .. code
 
-    cd /home/spt3g/he10_fridge_control/website/ 
-    python -m http.server 8100
+   cd /home/spt3g/anl_fridge_control/website/
+   python -m http.server 8100
+   #anb updated package location in 07/2024
+   
+    #cd /home/spt3g/he10_fridge_control/website/ 
+    #python -m http.server 8100
     
 if for some reason you have your heart set on using python2, use this:
 
