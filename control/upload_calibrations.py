@@ -1,5 +1,5 @@
 import os, time
-
+calfile_path='/home/spt3g/anl_fridge_control/control/thermo_calibrations'
 
 ##### For talking to LS 340 #######
 import anl_fridge_control.lakeshore as LS
@@ -92,16 +92,54 @@ if upload_uc:
     #this data is already in logohms/K so no conversion is necessary
     # now enter the individual points in the calibration curve
     for ptindex in range(1,len(temps)+1):
-        set_str='CRVPT '+str(curve_index)+', '+str(ptindex)+','+np.str(res[ptindex-1])+','+temps[ptindex-1]+'\r\n'
+        set_str='CRVPT '+str(curve_index)+', '+str(ptindex)+','+np.str(res[ptindex-1])+','+np.str(temps[ptindex-1])+'\r\n'
         tcp_interface.sendto(set_str+' \r\n',('10.10.10.217',7777))
         time.sleep(2)
         print np.str(res[ptindex-1])+','+temps[ptindex-1]
 
+if upload_X83081:
+    curve_index=23   # Cernox X83081
+    thermo_serial='X83081'
+    thermo_series='CX-1010-SD-HT-0.1L'
+    curve_format='4'   # 1= mV/K, 2= V/K, 3= Ohms/K, 4= log10Ohm/K, 5=log10Ohm/log10K                              
+    curve_limit='330'   # curve temp limit in kelvin                                                               
+    curve_coefficient='1'  # 1=negative, 2=positive                                                                
+    calfile_path='/home/spt3g/anl_fridge_control/control/thermo_calibrations'
+    hdr_str='CRVHDR '+str(curve_index)+', '+thermo_series+', '+thermo_serial+','+curve_format+','+curve_limit+','+curve_coefficient+'\r\n'
+    
+    tcp_interface.sendto((hdr_str+' \r\n').encode(),('10.10.10.217',7777))   # first setup the user curve header
+    tcp_interface.sendto(('CRVHDR? '+str(curve_index)+'\r\n').encode(),('10.10.10.217',7777)) # verify that the data is entered correctly
+    data=tcp_interface.recvfrom(1024); print(data)
+    curve_data=np.loadtxt(os.path.join(calfile_path, thermo_serial+'.dat'),dtype=np.str)
 
+    temps=curve_data[2:,0]
+    res=curve_data[2:,1]
+    temps=np.float64(np.flipud(temps))
+    res=np.flipud(res)
+    #note this data is in ohms/K, so have to convert to log 
+    res=np.float64(res)
+    res_log=np.log10(res)
+    temps=np.around(temps,5)
+    res_log=np.around(res_log,5)
+    
+    # now enter the individual points in the calibration curve
+    for ptindex in range(1,len(temps)+1):
+        set_str='CRVPT '+str(curve_index)+', '+str(ptindex)+','+np.str(res_log[ptindex-1])+','+np.str(temps[ptindex-1])+'\r\n'
+        tcp_interface.sendto((set_str+' \r\n').encode(),('10.10.10.217',7777))
+        time.sleep(3)
+        print(np.str(res_log[ptindex-1])+','+np.str(temps[ptindex-1]))     
+        tcp_interface.sendto(('CRVPT? '+str(curve_index)+','+str(ptindex)+'\r\n').encode(),('10.10.10.217',7777))
+        data=tcp_interface.recvfrom(1024); print(data)
+        print('.')
+        
 if configure_ic:
-    tcp_interface.sendto('INTYPE B,3,1,9,1,3,1\r\n',('10.10.10.217',7777))
-    tcp_interface.sendto('INCRV B, 26\r\n',('10.10.10.217',7777))
+    tcp_interface.sendto(b'INTYPE B,3,1,9,1,3,1\r\n',('10.10.10.217',7777))
+    tcp_interface.sendto(b'INCRV B, 26\r\n',('10.10.10.217',7777))
 
 if configure_uc:
-    tcp_interface.sendto('INTYPE A,3,1,9,1,3,1\r\n',('10.10.10.217',7777))
-    tcp_interface.sendto('INCRV A, 22\r\n',('10.10.10.217',7777))
+    tcp_interface.sendto(b'INTYPE A,3,1,9,1,3,1\r\n',('10.10.10.217',7777))
+    tcp_interface.sendto(b'INCRV A, 22\r\n',('10.10.10.217',7777))
+
+if configure_X83081:
+    tcp_interface.sendto(b'INTYPE A,3,1,9,1,3,1\r\n',('10.10.10.217',7777))
+    tcp_interface.sendto(b'INCRV A, 23\r\n',('10.10.10.217',7777))
